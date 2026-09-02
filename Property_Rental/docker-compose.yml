@@ -1,0 +1,23 @@
+# MySQL for local development. The API and Vite run on the host.
+services:
+  db:
+    image: mysql:8.4
+    container_name: rental-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: rental
+      MYSQL_USER: rental
+      MYSQL_PASSWORD: rental
+    ports:
+      - "3306:3306"
+    volumes:
+      - rental-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-prootpw"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  rental-mysql-data:
