@@ -1,8 +1,12 @@
 # Decisions
 
-> **Status:** written while designing, before the code exists. These are the calls I made and the
-> reasons for them. Each one is a commitment the implementation has to keep, not a description of
-> code that already runs.
+> **Status:** written while designing, before the code existed. These are the calls I made and the
+> reasons for them.
+>
+> **Decisions 4, 5 and 10 now have working code behind them**, and Decision 10 has the test I would
+> run first. All eight tables exist, so the others have their shape in place — but Decisions 1, 2, 3,
+> 6 and 7 describe behaviour in the rent, alert and request code, which is Sessions 2 and 3. Until
+> then they are commitments the implementation has to keep, not descriptions of code that runs.
 
 Ten decisions, each as what I chose, what I rejected, and why.
 
@@ -138,7 +142,8 @@ Decision 6 is this rule doing its job.
 ## Decision 6 — Sorting by priority and status uses an explicit rank, not the ENUM's declaration order
 
 **Chose.** An explicit SQLAlchemy `case()` expression mapping each priority and status to an integer
-rank in the `ORDER BY`.
+rank in the `ORDER BY`. The ranks are declared in `app/models/enums.py` as `PRIORITY_ORDER` and
+`STATUS_ORDER`; the `ORDER BY` that uses them belongs to the request list, which is not built yet.
 
 **Rejected.** Relying on MySQL's ENUM ordering, which sorts by declaration order and therefore gives
 the correct answer for free.
@@ -235,9 +240,9 @@ known-good behaviour. The vertical approach feels better daily but pays for it b
 whenever an endpoint changes shape, and the rule-heavy endpoints are precisely the ones most likely
 to move while being written.
 
-The risk is real and accepted: no working UI until the last day. It is offset by FastAPI's generated
-`/docs` page being demonstrable on its own, and by the cut list in `plan.md` having been decided in
-advance rather than improvised under deadline.
+The risk is real and accepted: no working UI until the final session. It is offset by FastAPI's
+generated `/docs` page being demonstrable on its own, and by the cut list in `plan.md` having been
+decided in advance rather than improvised under pressure.
 
 ---
 

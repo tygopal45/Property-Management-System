@@ -2,9 +2,13 @@
 
 **Property Rental & Maintenance**
 
-> **Status:** written 1 September, at design time — before the tables exist — so the reasoning is
-> recorded while it is being made rather than reconstructed at the end. Every column, type and
-> constraint below matches `images/er-diagram.png` exactly.
+> **Status:** written at design time, before the tables existed, so the reasoning is recorded while it
+> is being made rather than reconstructed at the end. Every column, type and constraint below matches
+> `images/er-diagram.png` exactly.
+>
+> **All eight tables now exist**, created by one Alembic migration from the models in `api/app/models/`.
+> The behaviour described in the derivation sections (§5.1, §5.2, §7, §8) is what the rent, alert and
+> request code has to do; §13 marks which of its tests are written and which are still specification.
 
 ---
 
@@ -596,7 +600,7 @@ position to defend than "a few places, for speed."
 | Permission check on event edit/delete | A refactor can weaken it; the requirement says *including managers* |
 | Hard `DELETE` on archive | Destroys history the requirement preserves; foreign keys would refuse it anyway |
 | `FLOAT` for money | *matched* vs *underpaid* turns on exact equality |
-| Rely on `ENUM` declaration order to sort | **Reversed decision.** Correct while the column really is an enum, but SQLAlchemy renders it as `VARCHAR` when there is no native enum type — on SQLite in tests, or with `native_enum=False` — and then it sorts *alphabetically*: `high, low, medium, urgent`. No error either way. Now an explicit `case()` rank in the query, which does not care how the column was built |
+| Rely on `ENUM` declaration order to sort | **Reversed decision.** Correct while the column really is an enum, but SQLAlchemy renders it as `VARCHAR` when there is no native enum type — on SQLite in tests, or with `native_enum=False` — and then it sorts *alphabetically*: `high, low, medium, urgent`. No error either way. Replaced by an explicit `case()` rank in the query, which does not care how the column was built — the ranks are in `app/models/enums.py`, the `ORDER BY` comes with the request list |
 | Separate tables per event type | Five near-identical tables; one timeline query becomes five unions |
 | `tenancy_start_date` + prorated first month | A second shape of "amount due" that every screen and the bulk import must understand, for a rule no requirement states — see §10 |
 | Guard only the move into Scheduled | Assign, schedule, then unassign — and the request sits in Scheduled with nobody on it. The guard is stepped around, not broken. See §7 |
@@ -749,8 +753,9 @@ the primary key of `request_assignments`. Sorting happens in the database, and `
 I write every rule above as a plain function that takes values and returns a value, so each one can
 be tested on its own without going through HTTP.
 
-**These tests do not exist yet.** The list below is the specification the code has to satisfy, written
-from the requirements before any code was written — not a report on tests that pass.
+The list below was written from the requirements before any code was written, so it is a
+specification rather than a report. **Items marked *(written)* now exist and pass — 26 tests in
+total.** Everything unmarked is still specification, and belongs to a session that has not run yet.
 
 Lifecycle:
 
@@ -762,11 +767,12 @@ Lifecycle:
 
 Rent:
 
-- **Raise the rent, and past months keep their old price.** Pay July and August in full at 1000, add a
-  1200 rate from September, then re-read July and August: both still matched. This is the test that
-  catches the bug in §4b, and it is the one I would want run first.
+- **Raise the rent, and past months keep their old price.** *(written)* Add a 1300 rate from
+  September to a unit renting at 1200, then re-read July and August: both still 1200. This is the test
+  that catches the bug in §4b, and it is the one I would want run first.
 - A bulk batch with one row of each kind returns matched / underpaid / overpaid / unmatched.
-- No rent is owed for a month before the unit's first rate, or for the month it was archived and after.
+- No rent is owed for a month before the unit's first rate *(written)*, or for the month it was
+  archived and after.
 
 Alerts:
 
@@ -777,7 +783,8 @@ Alerts:
 
 Roles and history:
 
-- A contractor gets 403 on every rent route, on `/api/units` writes, and on the assignment routes.
+- A contractor gets 403 on every rent route, on `/api/units` writes *(written — every manager-only
+  route, parametrised, plus 401 when signed out)*, and on the assignment routes.
 - A contractor's list contains only requests assigned to them, across all units.
 - An event row is unchanged after trying every route that touches its request.
 - Reopening a request does not change what the eight-week chart reported for an earlier week (§8).

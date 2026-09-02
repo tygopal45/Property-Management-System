@@ -82,11 +82,13 @@ itself produced an hour earlier:
 2. `PATCH /requests/{id}` was specified as "manager only for the assignments list" without saying how
    that would be enforced.
 
-**What I corrected.** Both, before any code existed. Ordering now goes through an explicit SQLAlchemy
-`case()` mapping each value to a rank — engine-independent, four extra lines, and the reversed
-decision in `decisions.md`. The endpoint now accepts only `description` and `priority`: there is no
-assignments field to permission-check because there is no assignments field at all, the same
-principle as the append-only timeline.
+**What I corrected.** Both, before any code existed. Ordering will go through an explicit SQLAlchemy
+`case()` mapping each value to a rank — engine-independent, four extra lines, and the reversed decision
+in `decisions.md`. The request list is Session 2 work, so that rank is a commitment rather than
+shipped code; what is already in place is the reason it will be needed, because the test suite runs on
+SQLite, where the column really is a `VARCHAR`. The endpoint will accept only `description` and
+`priority`: there is no assignments field to permission-check because there is no assignments field at
+all, the same principle as the append-only timeline.
 
 The lesson is about method rather than the tool. Reading the schema as a whole surfaced neither
 defect; checking one requirement at a time did. The ENUM bug was invisible precisely because it was
