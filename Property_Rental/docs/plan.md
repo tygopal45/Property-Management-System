@@ -4,7 +4,9 @@
 > column is a real prediction rather than a number reverse-engineered from the outcome. The Actual
 > column and the "what I cut" section are filled in as each session ends.
 >
-> **Where it stands:** Sessions 0, 1 and 2 are done. Sessions 3 and 4 are not started.
+> **Where it stands:** Sessions 0, 1 and 2 are done. Session 3 is not started. Session 4 is
+> part-started — the sign-in page and the units table were built early, out of order; the rest of
+> the browser app and the deploy are outstanding.
 
 ## How I split the work into sessions
 
@@ -18,7 +20,7 @@ hit the number.
 | 1 | Foundations — **done** | Scaffold both apps, MySQL in Docker, health check green. Then models + first migration, auth (bcrypt + JWT cookie), role guards, units CRUD + archive/restore, seed data | 1, 2 |
 | 2 | Requests — **done** | Requests CRUD, lifecycle + guard, manager-only assignment, immutable timeline, the filtered/sorted/paginated list | 3, 4, 5, 6, 9 |
 | 3 | Money and alerts | Rent payments, bulk endpoint + the four-way report, CSV rent roll, alerts + dismissal + nav badge, the dashboard's four headline numbers, the by-status and by-contractor breakdowns, and the eight-week chart | 7, 8, 10 |
-| 4 | Frontend | The whole React frontend, deploy, seed production, finish docs | — |
+| 4 | Frontend — *part started* | The whole React frontend, deploy, seed production, finish docs. Sign-in and the units table already exist | — |
 
 **Where this actually stands.** Sessions 0, 1 and 2 are done and 4.75 hours are spent. That leaves
 Sessions 3 and 4 — the rent tools and dashboard, and the whole frontend — and 6 hours of planned work
@@ -87,7 +89,7 @@ point of writing it down early.
 | 1 — scaffold, auth, units, seed | 3.0 h | **0.75 h** | Came in at a quarter of the estimate. See below |
 | 2 — requests, lifecycle, history, list | 3.0 h | **0.5 h** | Same effect as Session 1 |
 | 3 — rent, alerts, dashboard | 3.0 h | not started | |
-| 4 — frontend, deploy, docs | 3.0 h | not started | |
+| 4 — frontend, deploy, docs | 3.0 h | part started | Sign-in and units table were built with Session 1's scaffold |
 | **Total** | **13.0 h** | **4.75 h so far** | |
 
 I would rather explain the Session 0 overrun than hide it. I estimated one hour and took three and a

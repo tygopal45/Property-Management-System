@@ -132,7 +132,10 @@ the same definition would cost a write every time and buy nothing.
 a negative rent is not.
 
 I write one row when the unit is created, and another every time a manager changes the
-rent. Nothing is ever updated or deleted, so the old rate stays on record.
+rent for a *new* month. Correcting a figure for a month that already has a row edits that row
+instead, so a unit never ends up with two rents starting in the same month — the unique
+constraint would refuse it anyway. What is protected is every month *before* the one being
+corrected: those keep the rate they had, which is the whole point of §4b.
 
 ### `rent_payments`
 
@@ -772,7 +775,7 @@ I write every rule above as a plain function that takes values and returns a val
 be tested on its own without going through HTTP.
 
 The list below was written from the requirements before any code was written, so it is a
-specification rather than a report. **Items marked *(written)* now exist and pass — 157 tests in
+specification rather than a report. **Items marked *(written)* now exist and pass — 165 tests in
 total, running in under four seconds.** Everything unmarked is still specification, and belongs to a session that has not run yet.
 
 Lifecycle:

@@ -77,7 +77,13 @@ def update_unit(
 def change_rent(
     db: Session, unit_id: int, *, monthly_rent: Decimal, effective_from: date
 ) -> UnitRent:
-    """A rent change adds a row. It never edits one, so past months keep the rate they had."""
+    """A rent change for a new month adds a row, so earlier months keep the rate they had.
+
+    A change for a month that already has a rate corrects that row in place: a unit cannot have
+    two rents starting in the same month, and the unique constraint would reject a second one. So
+    what is preserved is every month before the one being corrected — the rule that matters, and
+    the reason rent is a table rather than a column.
+    """
     unit = get_unit(db, unit_id)
     effective_from = month_start(effective_from)
 

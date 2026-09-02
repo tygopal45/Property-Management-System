@@ -234,6 +234,11 @@ that out in full rather than glossing over it.
 
 **Chose.** Sessions 1–3 are API and tests only; the entire React app is Session 4.
 
+**Where I bent it.** Two screens — sign-in and the units table — were built during Session 1's
+scaffold, because a scaffold that renders nothing proves nothing. That is a deviation from the rule
+above, recorded rather than quietly absorbed: everything rule-heavy still waits for Session 4, which
+is the part the reasoning was actually about.
+
 **Rejected.** Building vertically — each feature's API and UI together — so that a demoable app exists
 from day one.
 
@@ -251,7 +256,12 @@ decided in advance rather than improvised under pressure.
 ## Decision 10 — A unit's rent is a list of rates with start dates, not one column
 
 **Chose.** A `unit_rents(unit_id, monthly_rent, effective_from)` table. One row when the unit is
-created, one more row every time the rent changes. Nothing is ever overwritten.
+created, one more row every time the rent changes for a **new** month.
+
+A correction to a month that already has a rate edits that row instead of adding a second one — a
+unit cannot have two rents starting in the same month, and the unique constraint would reject it.
+What is never touched is every month *before* the one being corrected, and that is the rule this
+whole decision exists to protect.
 
 **Rejected.** `units.monthly_rent`, a single column that a manager edits. Which is what I had.
 
