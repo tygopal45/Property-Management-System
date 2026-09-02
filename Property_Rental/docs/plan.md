@@ -4,7 +4,7 @@
 > column is a real prediction rather than a number reverse-engineered from the outcome. The Actual
 > column and the "what I cut" section are filled in as each session ends.
 >
-> **Where it stands:** Sessions 0 and 1 are done. Sessions 2 to 4 are not started.
+> **Where it stands:** Sessions 0, 1 and 2 are done. Sessions 3 and 4 are not started.
 
 ## How I split the work into sessions
 
@@ -16,13 +16,13 @@ hit the number.
 |---|---|---|---|
 | 0 | Design — **done** | Design only: the tables, the ER diagram, and a check of the design against all ten requirements one at a time | — |
 | 1 | Foundations — **done** | Scaffold both apps, MySQL in Docker, health check green. Then models + first migration, auth (bcrypt + JWT cookie), role guards, units CRUD + archive/restore, seed data | 1, 2 |
-| 2 | Requests | Requests CRUD, lifecycle + guard, manager-only assignment, immutable timeline, the filtered/sorted/paginated list | 3, 4, 5, 6, 9 |
+| 2 | Requests — **done** | Requests CRUD, lifecycle + guard, manager-only assignment, immutable timeline, the filtered/sorted/paginated list | 3, 4, 5, 6, 9 |
 | 3 | Money and alerts | Rent payments, bulk endpoint + the four-way report, CSV rent roll, alerts + dismissal + nav badge, the dashboard's four headline numbers, the by-status and by-contractor breakdowns, and the eight-week chart | 7, 8, 10 |
 | 4 | Frontend | The whole React frontend, deploy, seed production, finish docs | — |
 
-**Where this actually stands.** Sessions 0 and 1 are done and 4.25 hours are spent. That leaves
-Sessions 2, 3 and 4 — the maintenance lifecycle, the rent rules, and the frontend — and 9 hours of
-planned work still ahead of me.
+**Where this actually stands.** Sessions 0, 1 and 2 are done and 4.75 hours are spent. That leaves
+Sessions 3 and 4 — the rent tools and dashboard, and the whole frontend — and 6 hours of planned work
+still ahead of me.
 
 That is tight against the time I have, and I would rather write it down than discover it later. It is
 also exactly what the cut list at the bottom of this document is for: I decided it in advance, in
@@ -32,9 +32,19 @@ Session 0 went entirely on design: settling the tables, drawing the ER diagram, 
 design against all ten requirements one at a time.
 
 Session 1 turned that design into requirements 1 and 2 — the eight tables and their migration, login,
-the role guards, units with rent history, archive and restore, and 26 tests. It took 45 minutes
+the role guards, units with rent history, archive and restore, and 29 tests. It took 45 minutes
 against a 3 hour estimate, which is the opposite of the Session 0 overrun and for the same reason:
 every question the code raised had already been answered on paper.
+
+Session 2 added requirements 3, 4, 5, 6 and 9 — maintenance requests, the lifecycle and its guards,
+assignment, the searchable list, and the append-only timeline. Half an hour against three. The same effect again, and one thing worth naming: re-reading the brief before
+starting turned up twelve places where it does not say what to do, and settling those on paper first
+is most of why the code went quickly. They are written up at the end of `decisions.md`.
+
+A deliberate pass afterwards — write the nastiest test cases I could think of against everything
+built so far, rather than the ones that confirm it works — took the suite from 87 tests to 139 and
+found three real bugs. That pass is worth more than its half hour: two of the three were wrong
+answers rather than errors, which is the kind that ships.
 
 Checking requirement by requirement is what earned its keep. It found three real mistakes before any
 code existed, and one of them was serious: rent was a single column on the unit, so raising a rent
@@ -75,10 +85,10 @@ point of writing it down early.
 |---|---|---|---|
 | 0 — design, schema, ER diagram | 1.0 h | 3.5 h | Went 3.5x over. See below |
 | 1 — scaffold, auth, units, seed | 3.0 h | **0.75 h** | Came in at a quarter of the estimate. See below |
-| 2 — requests, lifecycle, history, list | 3.0 h | not started | |
+| 2 — requests, lifecycle, history, list | 3.0 h | **0.5 h** | Same effect as Session 1 |
 | 3 — rent, alerts, dashboard | 3.0 h | not started | |
 | 4 — frontend, deploy, docs | 3.0 h | not started | |
-| **Total** | **13.0 h** | **4.25 h so far** | |
+| **Total** | **13.0 h** | **4.75 h so far** | |
 
 I would rather explain the Session 0 overrun than hide it. I estimated one hour and took three and a
 half.
@@ -96,17 +106,23 @@ roughly an hour and a half on one picture, and it taught me nothing.
 What I would do differently: draw the diagram once, last, after the tables have stopped moving. I drew
 it early because it felt like progress.
 
-**Session 1 then came in at 0.75 hours against 3.** That is not a better estimate, it is the design
-session being paid back: the tables, the constraints and the rent-history rule were already settled, so
-building them was transcription rather than thinking. The 3.5 hours and the 0.75 hours are really one
-number, and 4.25 hours for requirements 1 and 2 is the honest way to read it.
+**Sessions 1 and 2 then came in at 0.75 and 0.5 hours against 3 apiece.** That is not better
+estimating, it is the design session being paid back: the tables, the constraints, the transition table
+and the rent-history rule were already settled, so building them was transcription rather than
+thinking. The 3.5 hours of design and the 1.25 hours of building are really one number, and 4.75 hours
+for seven requirements is the honest way to read it.
+
+What that says about the original estimate is that I put the hours in the wrong column rather than
+getting the total wrong. Thirteen hours planned, and it looks like it will land well under — but only
+because the thinking happened first, and it happened in the session I had budgeted an hour for.
 
 The remaining estimates are guesses. Where I expect them to be wrong, written down now so the
 comparison later is honest:
 
-- **Session 3 will run long.** The bulk rent report and the alert derivation are the two places where
-  the brief's wording has to become exact behaviour, and the edge cases only surface once the tests
-  are written.
+- **Session 3 is the one I would still expect to run long.** The bulk rent report and the alert
+  derivation are the two places where the brief's wording has to become exact behaviour, and the edge
+  cases only surface once the tests are written. Sessions 1 and 2 went fast because the design had
+  already answered their questions; the rent classification has the most wording left to pin down.
 - **Session 4 is the riskiest**, because it carries deployment. Deployment on an unfamiliar free tier
   is the classic way to lose two hours to something that is not programming.
 

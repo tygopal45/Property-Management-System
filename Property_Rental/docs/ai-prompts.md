@@ -1,9 +1,10 @@
 # AI prompts
 
 I used Claude Code throughout, as a pair rather than a code generator: I set the direction and made
-the calls, and I pushed back when the output was wrong. **Two of the five entries below are AI answers
-I rejected**, and in each case the pushback is why the design is what it is. The fifth is the opposite
-case — AI finding a bug that AI had written, and that I had read past several times.
+the calls, and I pushed back when the output was wrong. **Two of the seven entries below are AI
+answers I rejected**, and in each case the pushback is why the design is what it is. The last three
+are the opposite case — AI finding bugs that AI had written, and that I had read past. Entry 7 also
+records two occasions where the AI was confidently wrong and running the code was what settled it.
 
 Prompts are reproduced as I typed them, typos included — a cleaned-up prompt is a different prompt.
 
@@ -172,3 +173,99 @@ had been AI-assisted in the first place — so this is not a story about AI bein
 about the same thing that worked in entry 3: checking one specific claim at a time, against the real files,
 instead of re-reading the whole thing and feeling satisfied. I had read that rent column many times
 without seeing it.
+
+---
+
+## 6. Attacking my own work — **found three bugs**
+
+**Prompt**
+
+> recheck the tasks you have done, test on more test cases (generate them).
+
+**What I got.** Rather than more tests of the kind already there, a deliberate attempt to break what
+was built: forged and expired session cookies, tokens naming a deleted user, empty and
+whitespace-only text, oversized strings, negative and over-precise money, archiving twice, paging
+past the end, filters that match nothing, and search terms full of characters that mean something to
+SQL. The suite went from 87 tests to 139.
+
+**Three of them found real bugs**, and the two that matter are the same shape — a wrong answer rather
+than an error:
+
+1. **`LIKE` wildcards were passed straight through.** `%` and `_` are wildcards, so searching for
+   `%` returned *every* request and searching for `50%` matched anything beginning "50". The value
+   was always a bound parameter, so this was never an injection — which is why it would have
+   survived: nothing errors, nothing logs, the list just answers the wrong question. Fixed by
+   escaping the term and telling the database which character does the escaping.
+2. **Email comparison depended on the database engine.** MySQL's default collation compares strings
+   case-insensitively, so `PRIYA@example.com` logged in fine. SQLite compares exactly, so the same
+   request failed. Both were "working" — on different engines. Since the whole point of Decision 5
+   is that the SQL stays portable, this was that promise leaking. Emails are now lowercased on the
+   way in, on both write and login.
+3. **A whitespace-only description was accepted.** `min_length=1` is satisfied by `"   "`. Trimming
+   is now part of the type, so blank-after-trimming is refused, and `" 4B"` can no longer become a
+   second unit alongside `"4B"`.
+
+**What I corrected in the tests themselves.** Two of my new tests were wrong before the code was.
+I asserted that searching `%` should return nothing, when the right answer is one row — the one
+description that genuinely contains a percent sign. The escaping was working; my expectation was
+not. Worth recording, because a test that asserts the wrong thing is the most expensive kind.
+
+**The lesson, and it is the same one as entry 3.** Tests written alongside a feature confirm the
+feature. Tests written to attack it find bugs. All three of these sat in code that already had 87
+passing tests over it, and none of the three would have raised an error in production — they would
+have returned confident, wrong answers.
+
+---
+
+## 7. A security review by six parallel reviewers — **found a critical hole and two races**
+
+**Prompt**
+
+> the lead told me to check for some vulnerabilities. I want to search thoroughly and test thoroughly
+> with subagents.
+
+**What I got.** Six reviews running at once, each given one attack surface and told to *verify or
+refute* every hypothesis by actually running it rather than reasoning about it: authentication and
+sessions, authorisation and access control, injection and input handling, information disclosure,
+configuration and dependencies, and the frontend plus business-logic abuse. Two were cut off by a
+usage limit and I finished their work myself.
+
+**The critical one.** `config.py` carried `jwt_secret = "dev-secret-not-for-production"` as a default.
+Three of the reviews independently used it to mint a cookie for user 1 and became a property manager
+with no password — reading rent, creating units, everything. The access-control code never failed;
+it correctly honoured a token that was genuinely valid. One forgotten environment variable on deploy
+day was the whole distance between working and wide open, and nothing warned. There is no default
+now: the app refuses to start without a real secret, and refuses weak ones.
+
+**The two I care about more, because they were mine.** Both are concurrency, and neither was
+reachable by any single-threaded test:
+
+1. Racing "move to Scheduled" against "unassign the last contractor" left requests **Scheduled with
+   nobody assigned** — exactly the state requirement 4's guard exists to prevent. Twelve times out of
+   twelve. Row locks alone did not fix it. The real cause is that MySQL runs at REPEATABLE READ, so
+   the plain `SELECT` counting assignments answered from the snapshot taken at the transaction's
+   *first* read, and still saw a contractor another transaction had already deleted and committed.
+   The guard passed against a fact that was no longer true. Making the count a **locking** read fixed
+   it — a locking read in InnoDB always sees the latest committed version. Twenty rounds, zero
+   violations.
+2. Six simultaneous identical status changes all returned 200 and wrote **seven timeline events for
+   one change**. The "already in that state" check read before any of them committed, so all six
+   passed it. That is requirement 9's un-rewritable history filling with events that never happened.
+
+**Also found and fixed:** a login timing oracle (a known email took 405ms, an unknown one 5ms — the
+identical error message was doing nothing on its own), two ways for any signed-in user to force a 500,
+uncapped request text, a health check that reported `"ok"` while the database was unreachable, and a
+422 that named another user and so let you walk the users table.
+
+**What I got wrong twice, and it is the more useful lesson.** My first fix for the timing oracle built
+the dummy hash at import; the test suite lowers bcrypt rounds *after* importing, so the placeholder
+stayed expensive while real hashes went cheap and the gap came back **98x, pointing the other way**.
+And two reviews reported that a fresh clone would not import, because `main.py` imports a module that
+is untracked. I repeated that without checking. It was false — the *tracked* `main.py` does not import
+it; only my working copy did. Cloning the repository and running it took a minute and disproved both
+reviews at once.
+
+**The lesson, the same one as entries 3 and 6.** The reviews that found real problems were the ones
+made to run something. The two claims that turned out to be wrong were both produced by reading code
+and reasoning about it. Parallelism helped by covering more ground, not by being more reliable — three
+reviews agreeing on the fresh-clone claim did not make it true.

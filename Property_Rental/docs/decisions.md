@@ -3,10 +3,10 @@
 > **Status:** written while designing, before the code existed. These are the calls I made and the
 > reasons for them.
 >
-> **Decisions 4, 5 and 10 now have working code behind them**, and Decision 10 has the test I would
-> run first. All eight tables exist, so the others have their shape in place — but Decisions 1, 2, 3,
-> 6 and 7 describe behaviour in the rent, alert and request code, which is Sessions 2 and 3. Until
-> then they are commitments the implementation has to keep, not descriptions of code that runs.
+> **Decisions 3, 4, 5, 6, 8, 9 and 10 now have working code behind them.** Decision 10 has the test I
+> would run first, and Decision 6's rank is finally in a real `ORDER BY`. Decisions 1, 2 and 7 describe
+> behaviour in the rent and alert code, which is the next session — until then they are commitments the
+> implementation has to keep, not descriptions of code that runs.
 
 Ten decisions, each as what I chose, what I rejected, and why.
 
@@ -143,7 +143,9 @@ Decision 6 is this rule doing its job.
 
 **Chose.** An explicit SQLAlchemy `case()` expression mapping each priority and status to an integer
 rank in the `ORDER BY`. The ranks are declared in `app/models/enums.py` as `PRIORITY_ORDER` and
-`STATUS_ORDER`; the `ORDER BY` that uses them belongs to the request list, which is not built yet.
+`STATUS_ORDER`, and `app/services/requests.py` builds the `case()` from them. A test sorts by priority
+and asserts the order is urgent-first rather than the alphabetical `high, low, medium, urgent` — which
+is what the same query returns on SQLite if the rank is left out.
 
 **Rejected.** Relying on MySQL's ENUM ordering, which sorts by declaration order and therefore gives
 the correct answer for free.
@@ -281,3 +283,55 @@ is that reading a design does not test it. Pick a scenario and follow it through
 **What it costs.** Reading a unit's current rent is a lookup instead of a column, so the portfolio list
 and the rent roll both join to `unit_rents`. Eight tables instead of seven. Worth it to make corrupting
 history impossible rather than merely unlikely.
+
+## Smaller readings of the brief
+
+The ten decisions above are the ones with architecture behind them. These are the places where the
+brief does not say, I had to pick, and someone could reasonably ask why. Recording them here means the
+answer is a decision rather than a shrug.
+
+| # | The brief does not say | What I do | Why |
+|---|---|---|---|
+| a | Whether a contractor may edit a request that is not assigned to them | No | Requirement 1 caps a contractor at "see and update maintenance requests assigned to them". Requirement 3's "either can edit" is about which *role* may edit, not about widening what a contractor can reach |
+| b | Whether that refusal is 403 or 404 | **404** | 403 confirms the request exists. Requirement 1 says a contractor cannot *see* it, so leaking its existence through the status code would break the same rule the check enforces |
+| c | Whether a contractor may change status at all | Yes — every legal transition, on requests assigned to them | Three things in the brief point the same way. Requirement 1 grants "see and **update**" and then lists exactly what a contractor cannot do — create units, assign other contractors, see rent data — and status is not on that list. Requirement 4 states the transitions and the guard but never says who performs them. And the scenario tracks a repair "to the contractor closing it out". A closed list of prohibitions that omits this, plus a scenario that describes it, is as clear as the brief gets. See the note below on the one part I would still raise |
+| d | Whether `Reported → Scheduled` may skip Triaged | No | The chain in requirement 4 is written with arrows, and it says any other move must be rejected. Skipping is another move |
+| e | Whether setting a status to the one it already has is legal | No, 409 | Same reading. It is also the case most likely to arrive from a double-clicked button, and quietly accepting it would write a status-change event with the same old and new value |
+| f | Whether reopening clears `resolved_at` | Yes | Otherwise a request sitting in Triaged still claims a resolution date, and requirement 8's "resolved this week" would count it |
+| g | Whether a manager can be assigned as if they were a contractor | No, 422 | Requirement 5 is about "a contractor's assignment". A manager in the by-contractor breakdown on the dashboard would be a quiet data error rather than a visible one |
+| h | What happens when the last contractor is unassigned from a Scheduled request | The request drops back to **Triaged**, and the timeline records both the unassignment and the status change | Requirement 4 says a request cannot *be* Scheduled with nobody assigned. Refusing the unassignment would keep that true, but it blocks a manager from swapping a contractor who has gone sick. Dropping to Triaged keeps the rule true and keeps the assessment: Triaged means "we know what this job is, nobody is going yet", which is exactly the new situation. See `schema.md` §7 |
+| i | Whether editing description or priority appears in the timeline | No | Requirement 9 lists what the timeline must show: creation, status changes, assignments and unassignments, notes. Description edits are not on that list, and I am following it literally rather than adding history the brief did not ask for |
+| j | Which direction each sort runs | Newest first; most urgent first; workflow order for status | The useful default in each case. Requirement 6 asks for sorting by those three fields and does not name a direction, so the direction is a parameter with a sensible default rather than a fixed choice |
+| k | Whether requests on archived units appear in the request list | Yes | Requirement 2 says archiving must not destroy a unit's maintenance requests. A repair on an archived unit is still a real repair; the unit filter is there to narrow it |
+| l | Who may leave a note | Both roles — a contractor only on a request assigned to them | Notes are how a contractor reports progress, which is the point of requirement 9 listing them. The scoping is rule (a) again |
+| m | Whether an email is case-sensitive | Lowercased on the way in, on both write and login | Nothing in the brief says. Left alone it is not a choice at all but an accident of the engine: MySQL's default collation compares case-insensitively, SQLite's does not, so the same login succeeds on one and fails on the other. Decision 5 promises portable behaviour, and this is exactly the sort of thing that quietly breaks it |
+| n | Whether text fields are trimmed | Yes, and empty-after-trimming is refused | `min_length=1` accepts `"   "`, which then sits in the list as a request with no description. Trimming also stops `" 4B"` and `"4B"` being two different units, which would make the uniqueness rule stop helping |
+
+**One of these is worth arguing about**, and it is (h). The brief only forbids *entering* Scheduled
+without a contractor, so what happens afterwards is a rule I added either way.
+
+The alternative I rejected was to refuse the unassignment outright. That keeps the status still, which
+is easier to explain — but it also means a manager cannot remove a contractor who has gone sick
+without first moving the request by hand, and requirement 5 says a manager can remove an assignment.
+A rule that makes a permitted action fail is the worse trade.
+
+So the request drops to Triaged, and the cost is named rather than hidden: a status can change as a
+side effect of an unassignment. Two things keep that from being a surprise — the timeline records both
+the unassignment and the status change with the manager's name on them, and Triaged is the honest
+description of what is now true. The job is understood; nobody is going.
+
+**A second one worth arguing about, and it is (c).** Read literally, a contractor can drive the whole
+lifecycle on a job assigned to them — not only `scheduled → resolved`, which is the "closing it out"
+the scenario describes, but `triaged → scheduled` as well. So a contractor can schedule their own
+work.
+
+I looked for a reason to narrow it and could not find one in the brief. Requirement 1's list of
+contractor prohibitions is closed and specific, and scheduling is not on it; requirement 4 is silent
+on who may move a status. Narrowing would mean inventing a rule the brief does not state, and the
+whole point of the table above is to stop myself doing that quietly.
+
+The honest position is that this is a product question the brief leaves open. If a reviewer said
+scheduling should be a manager's call — because it usually implies committing someone's time and a
+date — I would agree it is the more likely real-world rule, and it is a two-line change in
+`services/lifecycle.py`. I have not made it because the brief does not ask for it, and guessing at
+unstated rules is how a submission ends up defending decisions nobody asked it to make.

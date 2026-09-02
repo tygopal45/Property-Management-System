@@ -1,9 +1,9 @@
 # Architecture
 
-> **Status:** written at design time, before the code existed. **Requirements 1 and 2 are now built
-> to it** — the models, the migration, login, the role guards and units all exist. The request,
-> lifecycle, rent, alert and dashboard files named below do not yet, and the Layout section marks
-> which is which.
+> **Status:** written at design time, before the code existed. **Seven of the ten requirements are now
+> built to it** — the models and migration, login, the role guards, units, maintenance requests, the
+> lifecycle, assignment, the searchable list and the timeline. The rent, alert and dashboard files
+> named below do not exist yet, and the Layout section marks which is which.
 >
 > The database design is not here — it lives in [`schema.md`](schema.md).
 
@@ -92,12 +92,15 @@ api/                    the FastAPI service
   · deps.py             current_user, require_manager, contractor scoping
   · security.py         bcrypt hashing, token minting and reading
   · models/             all eight tables — user, unit, request, enums
-  · schemas/            auth, unit           |  requests, rent to come
-  · routers/            auth, units          |  requests, rent, dashboard, alerts to come
-  · services/           units, rent lookup   |  lifecycle, bulk, alerts to come
+  · schemas/            auth, unit, request  |  rent to come
+  · routers/            auth, units, requests |  rent, dashboard, alerts to come
+  · services/           units, rent lookup, requests, lifecycle, events
+                                              |  bulk, alerts to come
   · alembic/versions/   one migration per schema step
-  · tests/              pytest — roles, auth, units, rent history
-  · seed.py             users, units, six months of rent history
+  · tests/              pytest — roles, auth, units, rent history, lifecycle,
+                        assignments, timeline, the request list
+  · seed.py             users, units, six months of rent history, 20 requests
+                        with real timelines spread over eight weeks
 web/                    the React app
   src/
   · api/client.js       fetch wrapper, 401 handling
@@ -128,9 +131,8 @@ five.
 ## One request, traced all the way through
 
 The action below touches every layer and every rule, which is why it is the one worth following: a
-manager moves a maintenance request to **Scheduled**. This is how it is designed to work. The request
-routes are Session 2 work, so what follows is the specification rather than a description of code —
-but the layering it describes is the layering requirement 2 already runs on.
+manager moves a maintenance request to **Scheduled**. **This path is built**, and what follows
+describes the code as it runs.
 
 1. **Browser.** The manager clicks "Schedule" on request 12. The page calls
    `PATCH /api/requests/12/status` with `{"status": "scheduled"}`. The login cookie goes along
@@ -152,8 +154,9 @@ but the layering it describes is the layering requirement 2 already runs on.
    - Look up `reported → triaged → scheduled → resolved` in the transition table. The request is
      Triaged and the move is to Scheduled, so the move is legal.
    - That move is guarded, so count the rows in `request_assignments` for request 12. **If the count is
-     zero, raise a 409 saying "cannot move to Scheduled: no contractor is assigned yet."** The message
-     names both states and the reason, because the requirement says the server has to explain itself.
+     zero, raise a 409: "Cannot move a request from triaged to scheduled: no contractor is assigned
+     yet."** The message names both states and the reason, because the requirement says the server has
+     to explain itself.
    - Otherwise, in **one transaction**: set `status = 'scheduled'`, and insert a `request_events` row
      with `event_type = 'status_changed'`, `old_value = 'triaged'`, `new_value = 'scheduled'`, and
      `actor_id` set to this manager. Both writes commit together or neither does — a status change with

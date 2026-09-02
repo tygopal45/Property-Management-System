@@ -534,10 +534,22 @@ into* Scheduled with no contractor assigned. Guarding only the move is not enoug
 - Nothing stopped that. Request 18 is now Scheduled with nobody assigned — exactly the state the
   guard exists to prevent, reached by going around it.
 
-So unassigning the **last** contractor from a request that is Scheduled is rejected with a 409 saying
-so. The manager must either assign a replacement first, or move the request back to Triaged. That
-makes the rule always true — a Scheduled request always has at least one contractor — instead of only
-being checked at one door.
+So removing the **last** contractor from a Scheduled request **moves that request back to Triaged**, in
+the same transaction as the unassignment. The timeline gets two rows: the `unassigned` event, and a
+`status_changed` from `scheduled` to `triaged`, both with the manager's name on them. The rule then
+holds all the time — a Scheduled request always has at least one contractor — rather than being checked
+at one door.
+
+Triaged is the right landing place because it is the truth: the job has been assessed and nobody is
+going. Nothing about the assessment is lost, which is the same reason the brief sends a reopened
+request to Triaged rather than back to Reported.
+
+**The alternative, and why not.** Refusing the unassignment outright would also keep the rule true, and
+it has the advantage that no status changes behind the manager's back. I rejected it because
+requirement 5 says a manager may remove an assignment, and a rule that makes a permitted action fail
+is the worse trade — a contractor who goes sick could not be taken off the job without the manager
+first moving the request by hand. The cost of the choice I made is real and worth stating: a status can
+change as a side effect of an unassignment. The timeline is what stops that being a mystery.
 
 The limit of putting rules in the application is worth naming: they only hold while the application is
 the only thing writing to the database. That is exactly why the structural facts above are pushed down
@@ -603,7 +615,7 @@ position to defend than "a few places, for speed."
 | Rely on `ENUM` declaration order to sort | **Reversed decision.** Correct while the column really is an enum, but SQLAlchemy renders it as `VARCHAR` when there is no native enum type — on SQLite in tests, or with `native_enum=False` — and then it sorts *alphabetically*: `high, low, medium, urgent`. No error either way. Replaced by an explicit `case()` rank in the query, which does not care how the column was built — the ranks are in `app/models/enums.py`, the `ORDER BY` comes with the request list |
 | Separate tables per event type | Five near-identical tables; one timeline query becomes five unions |
 | `tenancy_start_date` + prorated first month | A second shape of "amount due" that every screen and the bulk import must understand, for a rule no requirement states — see §10 |
-| Guard only the move into Scheduled | Assign, schedule, then unassign — and the request sits in Scheduled with nobody on it. The guard is stepped around, not broken. See §7 |
+| Guard only the move into Scheduled | Assign, schedule, then unassign — and the request sits in Scheduled with nobody on it. The guard is stepped around, not broken. Removing the last contractor now drops the request to Triaged. See §7 |
 | Chart the eight weeks from `resolved_at` | Reopening a request in August erases a bar from the week of 4 August. The chart reads `request_events` instead — see §8 |
 
 Two rows in that table are mistakes I actually made and had to undo, not alternatives I dismissed on
@@ -741,6 +753,12 @@ full-text syntax differs between MySQL and Postgres.
 rows out as it reads them rather than building the whole file in memory first, so at 100x it should get
 slow rather than run out of memory.
 
+One detail about that search worth naming, because it is a correctness point rather than a speed
+one: `%` and `_` are `LIKE` wildcards, so the search term is escaped before it goes into the pattern.
+Without that, searching for `%` matches every row and searching for `50%` matches anything starting
+"50". The value was always bound as a parameter, so this was never an injection — it was a wrong
+answer, which is worse, because nothing errors and nobody notices.
+
 The rest of the request list is fine. All four filters requirement 6 asks for go through an index —
 `unit_id`, `status` and `priority` are indexed on the table, and filtering by contractor goes through
 the primary key of `request_assignments`. Sorting happens in the database, and `total` comes from a
@@ -754,16 +772,19 @@ I write every rule above as a plain function that takes values and returns a val
 be tested on its own without going through HTTP.
 
 The list below was written from the requirements before any code was written, so it is a
-specification rather than a report. **Items marked *(written)* now exist and pass — 26 tests in
-total.** Everything unmarked is still specification, and belongs to a session that has not run yet.
+specification rather than a report. **Items marked *(written)* now exist and pass — 157 tests in
+total, running in under four seconds.** Everything unmarked is still specification, and belongs to a session that has not run yet.
 
 Lifecycle:
 
-- All 16 status pairs: the four legal moves succeed, every other one returns 409 with a message.
-- `triaged → scheduled` with nobody assigned is rejected; with one contractor assigned, it succeeds.
-- Reopening from `resolved` lands on **`triaged`**, not `reported`.
-- Unassigning the last contractor from a `scheduled` request is rejected (§7). Unassigning one of two
-  succeeds.
+- All 16 status pairs: the four legal moves succeed, every other one returns 409 with a message
+  *(written — parametrised, and the message must name both states)*.
+- `triaged → scheduled` with nobody assigned is rejected; with one contractor assigned, it succeeds
+  *(written)*.
+- Reopening from `resolved` lands on **`triaged`**, not `reported` *(written)*, and clears
+  `resolved_at` *(written)*.
+- Unassigning the last contractor from a `scheduled` request drops it to `triaged` and writes both
+  events *(written)*. Unassigning one of two leaves it `scheduled` *(written)*.
 
 Rent:
 
@@ -784,7 +805,13 @@ Alerts:
 Roles and history:
 
 - A contractor gets 403 on every rent route, on `/api/units` writes *(written — every manager-only
-  route, parametrised, plus 401 when signed out)*, and on the assignment routes.
-- A contractor's list contains only requests assigned to them, across all units.
-- An event row is unchanged after trying every route that touches its request.
+  route, parametrised, plus 401 when signed out)*, and on the assignment routes *(written)*.
+- A contractor reading a unit gets the number and the address but **no rent figure and no rent
+  history** *(written)*. Requirement 1 says they cannot see rent data, and a field stripped in the
+  browser is still a field that was sent.
+- A contractor's list contains only requests assigned to them, across all units *(written)*, and
+  naming somebody else in the contractor filter returns nothing rather than everything *(written)*.
+- An event row is unchanged after trying every route that touches its request *(written)*, and no
+  route that edits or deletes an event exists at all *(written — asserted against the route table,
+  because a 404 from a made-up URL would prove nothing)*.
 - Reopening a request does not change what the eight-week chart reported for an earlier week (§8).

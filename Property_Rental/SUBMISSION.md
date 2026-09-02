@@ -1,6 +1,6 @@
 # Submission
 
-> **Status: two of the ten goals are built; the rest are designed and not started.** Filled in as the
+> **Status: seven of the ten goals are built; the rent tools, the dashboard and the frontend are not.** Filled in as the
 > work lands. Everything marked TODO below is still outstanding, and the goal checklist says Done only
 > where there is working, tested code behind it. I would rather hand you a checklist that admits what
 > is missing than one that reads as finished.
@@ -12,9 +12,11 @@
 
 ## Notes for the reviewer
 
-The design is finished and written up, and the first two requirements are built against it: accounts
-and roles, and units with rent history, archive and restore. 26 tests pass. Requirements 3 to 10 are
-designed in detail and not yet written.
+The design is finished and written up, and seven of the ten requirements are built against it:
+accounts and roles, units, maintenance requests, the lifecycle, assignment, finding requests, and the
+timeline that cannot be rewritten. **157 tests pass in under four seconds.** Requirements 7, 8 and 10 —
+bulk rent, the dashboard and rent alerts — are designed in detail and not yet written, and the browser
+app is a sign-in page and a units table.
 
 If you are reading this while it is still in progress, the five documents under [`docs/`](docs/) are
 the substance of what exists so far:
@@ -28,11 +30,24 @@ the substance of what exists so far:
 - [`docs/ai-prompts.md`](docs/ai-prompts.md) — the prompts that changed the design, including two
   answers I rejected.
 
-**Running it locally.** `docker compose up -d` starts MySQL. In `api/`:
-`pip install -r requirements.txt`, `alembic upgrade head`, `python seed.py`, then
-`uvicorn app.main:app --reload`. In `web/`: `npm install` and `npm run dev`. The API's own interactive
-documentation is at `/docs`, which makes every endpoint demonstrable without the UI. `pytest api/tests`
-runs the suite against in-memory SQLite and needs no database running.
+**Running it locally.** `docker compose up -d` starts MySQL. Then in `api/`:
+
+```
+cp .env.example .env
+python -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(48))" >> .env
+pip install -r requirements.txt
+alembic upgrade head
+python seed.py
+uvicorn app.main:app --reload
+```
+
+**The `JWT_SECRET` step is not optional — the app refuses to start without one.** That is deliberate:
+it used to carry a default, and a default meant anyone reading this repository could forge a session
+cookie and be a property manager without a password. There is no longer a value to forget.
+
+In `web/`: `npm install` and `npm run dev`. The API's own interactive documentation is at `/docs`,
+which makes every endpoint demonstrable without the UI. `pytest api/tests` runs the suite against
+in-memory SQLite and needs no database or environment file.
 
 TODO once deployed: note here whether the free host sleeps when idle and how long a cold first request
 takes.
@@ -62,22 +77,22 @@ Mark each honestly. Partial is fine — say what is partial.
 
 | # | Goal | Status | Notes |
 |---|------|--------|-------|
-| 1 | Accounts and roles | **Done** | Login with bcrypt and a JWT in an httpOnly cookie. Role guards in `deps.py`, tested by calling every manager-only route as a contractor and asserting 403. Contractor scoping through `request_assignments` arrives with requirement 5 |
+| 1 | Accounts and roles | **Done** | Login with bcrypt and a JWT in an httpOnly cookie. Role guards in `deps.py`, tested by calling every manager-only route as a contractor and asserting 403. A contractor sees units but not rent — the field is absent from the response, not hidden in the UI. Contractor scoping through `request_assignments` arrives with requirement 5 |
 | 2 | Units | **Done** | CRUD, archive and restore via `archived_at`. Rent lives in `unit_rents`, so a rent rise cannot re-price past months — that is the test I would run first |
-| 3 | Maintenance requests | Not done | Designed. `unit_id NOT NULL` is the "exactly one unit" rule; the edit endpoint has no assignments field at all |
-| 4 | Lifecycle with rules | Not done | Designed. Transition table in `schema.md` §7, including the extra rule that stops the Scheduled guard being stepped around |
-| 5 | Assignment | Not done | Designed. `request_assignments` with a composite primary key |
-| 6 | Finding requests | Not done | Designed. Server-side search, four filters, three sorts, `total` from a `COUNT` |
+| 3 | Maintenance requests | **Done** | `unit_id NOT NULL` is the "exactly one unit" rule. Either role creates and edits description and priority; the edit payload has no assignments field at all, so there is nothing to permission-check |
+| 4 | Lifecycle with rules | **Done** | One transition table in `services/lifecycle.py`. All 16 status pairs are tested; the 12 illegal ones return 409 naming both states and the reason. Reopen lands on Triaged and clears `resolved_at` |
+| 5 | Assignment | **Done** | Composite primary key, so a double assignment is impossible. Manager-only. Removing the last contractor from a Scheduled request drops it to Triaged rather than leaving the guard walkable around — `decisions.md` (h) |
+| 6 | Finding requests | **Done** | Server-side search, all four filters indexed, three sorts, `total` from its own `COUNT`. Priority sorts by an explicit rank, so it is urgent-first rather than alphabetical |
 | 7 | Bulk rent + CSV | Not done | Designed. Four outcomes: matched / underpaid / overpaid / unmatched |
 | 8 | Dashboard | Not done | Designed. Eight-week chart reads `request_events`, not `resolved_at` — `schema.md` §8 says why |
-| 9 | History you cannot rewrite | Not done | Designed. Append-only, enforced by no update or delete route existing |
+| 9 | History you cannot rewrite | **Done** | Append-only. Every change writes its event in the same transaction, so a refused move leaves no history. Enforced by no update or delete route existing — a test asserts on the route table itself |
 | 10 | Rent alerts | Not done | Designed. Dismissals keyed to `(unit, month)`, which is what makes the alert come back |
 
 ## How much time did you actually spend?
 
-4.25 hours so far: 3.5 on design against a 1 hour estimate, and 0.75 on the first build session
-against a 3 hour estimate. `docs/plan.md` has the breakdown, including why the design overran and why
-the build came in under.
+4.75 hours so far: 3.5 on design against a 1 hour estimate, 0.75 on Session 1 against 3, and 0.5 on
+Session 2 against 3. `docs/plan.md` has the breakdown, including why the design overran and why the
+build sessions keep coming in under.
 
 ## What would you do next, with another 12 hours?
 
@@ -85,9 +100,10 @@ TODO — answer honestly at the end.
 
 ## What are you least happy with in this codebase, and why?
 
-Right now: that eight of the ten requirements are still only designed. The design is more thorough
-than the build, which is the wrong way round, and the lifecycle and rent rules — the parts the brief
-weights most — are the ones still to write.
+The browser app. The API is thorough and the screens are two pages, so right now the system is much
+easier to demonstrate through its generated `/docs` page than through the interface a manager would
+actually use. That is the deliberate order — rules before routes, routes before screens — but it means
+the least finished part is the only part most people would ever see.
 
 On the design itself, the thing I am least happy with is that a unit cannot be marked empty. Rent is
 expected every month from the unit's first rate until it is archived, so a flat standing empty between
