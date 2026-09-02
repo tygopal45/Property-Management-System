@@ -34,3 +34,52 @@ def test_signed_out_callers_get_401_not_403(client, method, path, body):
 def test_contractor_may_read_units(as_contractor):
     """Reading is allowed — a contractor has to see the unit a job sits on."""
     assert as_contractor.get("/api/units").status_code == 200
+
+
+
+def _make_unit(db, number="7C", rent="900.00"):
+    from datetime import date
+    from decimal import Decimal
+
+    from app.services.units import create_unit
+
+    return create_unit(
+        db,
+        unit_number=number,
+        address="1 Test Row",
+        tenant_name="Test Tenant",
+        monthly_rent=Decimal(rent),
+        rent_effective_from=date(2026, 1, 1),
+    )
+
+
+def test_contractor_cannot_see_rent_data(as_contractor, db):
+    """Requirement 1: a contractor cannot see rent data.
+
+    They still need the unit — the number and the address are how they know where to go — so the
+    unit stays visible and the money does not.
+    """
+    _make_unit(db)
+    units = as_contractor.get("/api/units").json()
+
+    assert units, "the contractor should still see the units themselves"
+    for unit in units:
+        assert unit["unit_number"]  # the unit is visible
+        assert "current_rent" not in unit  # the money is not
+
+
+def test_contractor_cannot_see_rent_history_on_a_unit(as_contractor, db):
+    unit = _make_unit(db, "8D")
+    body = as_contractor.get(f"/api/units/{unit.id}").json()
+
+    assert body["unit_number"] == "8D"
+    assert "current_rent" not in body
+    assert body.get("rent_history") is None
+
+
+def test_manager_still_sees_rent(as_manager, db):
+    unit = _make_unit(db, "9E", "950.00")
+    body = as_manager.get(f"/api/units/{unit.id}").json()
+
+    assert body["current_rent"] == "950.00"
+    assert len(body["rent_history"]) == 1

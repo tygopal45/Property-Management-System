@@ -1,11 +1,27 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 from app.models.enums import Role
+
+
+def normalise_email(value: str) -> str:
+    """Emails are stored and compared lowercased, always.
+
+    Without this the app behaves differently per engine: MySQL's default collation compares
+    strings case-insensitively, so `Priya@example.com` finds the row, while SQLite compares
+    exactly and returns nothing. Same code, same data, different answer — which is precisely the
+    kind of engine-specific behaviour Decision 5 exists to keep out.
+    """
+    return value.strip().lower()
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def lowercase(cls, value: str) -> str:
+        return normalise_email(value)
 
 
 class UserOut(BaseModel):

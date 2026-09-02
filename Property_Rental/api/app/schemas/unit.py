@@ -1,7 +1,13 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Annotated
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
+
+
+def _text(limit: int):
+    """Trimmed, and empty once trimmed is not a value — see `schemas/request.py`."""
+    return Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=limit)]
 
 
 def first_of_month(value: date) -> date:
@@ -10,9 +16,9 @@ def first_of_month(value: date) -> date:
 
 
 class UnitCreate(BaseModel):
-    unit_number: str = Field(min_length=1, max_length=32)
-    address: str = Field(min_length=1, max_length=255)
-    tenant_name: str = Field(min_length=1, max_length=120)
+    unit_number: _text(32)
+    address: _text(255)
+    tenant_name: _text(120)
     monthly_rent: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     # The month this unit's first rent applies from. Defaults to the current month.
     rent_effective_from: date | None = None
@@ -26,8 +32,8 @@ class UnitCreate(BaseModel):
 class UnitUpdate(BaseModel):
     """Editing a unit never rewrites rent history. A new rent becomes a new `unit_rents` row."""
 
-    address: str | None = Field(default=None, min_length=1, max_length=255)
-    tenant_name: str | None = Field(default=None, min_length=1, max_length=120)
+    address: _text(255) | None = None
+    tenant_name: _text(120) | None = None
 
 
 class RentChange(BaseModel):
@@ -48,16 +54,20 @@ class UnitRentOut(BaseModel):
 
 
 class UnitOut(BaseModel):
+    """`current_rent` is absent entirely for a contractor — requirement 1 says they do not see
+    rent data, and omitting the key is a clearer answer than sending null."""
+
     id: int
     unit_number: str
     address: str
     tenant_name: str
     archived_at: datetime | None
-    # The rent in force today, or None if the first rate starts in a future month.
+    # The rent in force today. None if the first rate starts in a future month; absent for a
+    # contractor.
     current_rent: Decimal | None = None
 
     model_config = {"from_attributes": True}
 
 
 class UnitDetailOut(UnitOut):
-    rent_history: list[UnitRentOut] = []
+    rent_history: list[UnitRentOut] | None = None
