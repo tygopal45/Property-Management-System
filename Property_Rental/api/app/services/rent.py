@@ -7,10 +7,11 @@ history, never about a column on the unit. schema.md 4b.
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from fastapi import HTTPException, status as http
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import UnitRent
+from app.models import RentPayment, Unit, UnitRent, User
 
 
 def month_start(value: date) -> date:
@@ -35,3 +36,61 @@ def rent_for_month(db: Session, unit_id: int, month: date) -> Decimal | None:
 
 def current_rent(db: Session, unit_id: int, today: date | None = None) -> Decimal | None:
     return rent_for_month(db, unit_id, today or date.today())
+
+
+def record_payment(
+    db: Session,
+    *,
+    unit_id: int,
+    amount: Decimal,
+    period_month: date,
+    recorded_by: User,
+) -> RentPayment:
+    """Requirement 2: a payment carries an amount and the month it covers.
+
+    Those are two different dates and keeping them apart is the point. `created_at` is when the
+    money was entered; `period_month` is which month it pays for, so July's rent can be recorded
+    in September and still count against July.
+
+    Payments are a list, never a running total on the unit. That is what lets a month hold a part
+    payment, a late payment and a correction without any of them overwriting the others — and it
+    is why rent status can be worked out for any month on demand rather than stored.
+    """
+    unit = db.get(Unit, unit_id)
+    if unit is None:
+        raise HTTPException(http.HTTP_404_NOT_FOUND, "No such unit")
+
+    payment = RentPayment(
+        unit_id=unit_id,
+        amount=amount,
+        period_month=month_start(period_month),
+        recorded_by_id=recorded_by.id,
+    )
+    db.add(payment)
+    db.commit()
+    return payment
+
+
+def payments_for_unit(db: Session, unit_id: int, month: date | None = None) -> list[RentPayment]:
+    """Every payment against a unit, newest month first. Optionally one month only."""
+    query = select(RentPayment).where(RentPayment.unit_id == unit_id)
+    if month is not None:
+        query = query.where(RentPayment.period_month == month_start(month))
+    return list(
+        db.scalars(query.order_by(RentPayment.period_month.desc(), RentPayment.id.desc()))
+    )
+
+
+def total_paid(db: Session, unit_id: int, month: date) -> Decimal:
+    """What a unit has paid toward one month. Zero when nothing has been recorded.
+
+    This is the `paid` half of the rent-status calculation in schema.md 5.1 — the other half is
+    `rent_for_month` above. Neither is stored.
+    """
+    total = db.scalar(
+        select(func.coalesce(func.sum(RentPayment.amount), 0)).where(
+            RentPayment.unit_id == unit_id,
+            RentPayment.period_month == month_start(month),
+        )
+    )
+    return Decimal(total or 0)

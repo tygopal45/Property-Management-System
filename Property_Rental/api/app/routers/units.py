@@ -1,5 +1,7 @@
 """Units. Every write is manager-only; contractors may read the unit a job sits on."""
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -7,6 +9,8 @@ from app.db import get_db
 from app.deps import current_user, require_manager
 from app.models import User
 from app.schemas.unit import (
+    PaymentCreate,
+    PaymentOut,
     RentChange,
     UnitCreate,
     UnitDetailOut,
@@ -17,6 +21,7 @@ from app.schemas.unit import (
 from app.schemas.request import RequestOut
 from app.services import requests as request_service
 from app.services import units as unit_service
+from app.services import rent as rent_service
 from app.services.rent import current_rent
 
 router = APIRouter(prefix="/api/units", tags=["units"])
@@ -142,3 +147,37 @@ def unit_requests(
         }
         for r in request_service.requests_for_unit(db, unit_id, viewer)
     ]
+
+
+@router.post(
+    "/{unit_id}/payments", response_model=PaymentOut, status_code=status.HTTP_201_CREATED
+)
+def record_payment(
+    unit_id: int,
+    body: PaymentCreate,
+    db: Session = Depends(get_db),
+    manager: User = Depends(require_manager),
+):
+    """Requirement 2: a property manager records a rent payment against a unit.
+
+    Manager-only, like every other money route — requirement 1 says a contractor cannot see rent
+    data, let alone write it.
+    """
+    return rent_service.record_payment(
+        db,
+        unit_id=unit_id,
+        amount=body.amount,
+        period_month=body.period_month,
+        recorded_by=manager,
+    )
+
+
+@router.get("/{unit_id}/payments", response_model=list[PaymentOut])
+def list_payments(
+    unit_id: int,
+    month: date | None = Query(None, description="Limit to one month; any day pins to the 1st"),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_manager),
+):
+    unit_service.get_unit(db, unit_id)
+    return rent_service.payments_for_unit(db, unit_id, month)

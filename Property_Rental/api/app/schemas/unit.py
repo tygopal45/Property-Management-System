@@ -71,3 +71,26 @@ class UnitOut(BaseModel):
 
 class UnitDetailOut(UnitOut):
     rent_history: list[UnitRentOut] | None = None
+
+
+class PaymentCreate(BaseModel):
+    """Requirement 2: an amount and the month it covers."""
+
+    amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    period_month: date
+
+    @field_validator("period_month")
+    @classmethod
+    def pin_to_first(cls, v: date) -> date:
+        return first_of_month(v)
+
+
+class PaymentOut(BaseModel):
+    id: int
+    unit_id: int
+    amount: Decimal
+    period_month: date
+    recorded_by_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
