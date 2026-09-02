@@ -8,7 +8,9 @@ import os
 
 # Set before importing the app: config reads the environment at import time.
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
-os.environ["JWT_SECRET"] = "test-secret"
+# Long enough to satisfy the production guard in config.py. Deliberately a real-shaped value:
+# a test that runs with a weak secret would not be testing the same code path.
+os.environ["JWT_SECRET"] = "test-only-secret-long-enough-to-pass-the-startup-guard"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,7 +21,12 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.main import app
 from app.models import Role, User
-from app.security import hash_password
+from app.security import _pwd, hash_password
+
+# bcrypt is deliberately slow, which is the point in production and pure cost here — the fixtures
+# hash a password for every test. Four rounds keeps the same code path and the same verify() call
+# while taking the work out. Production rounds are the library default, untouched.
+_pwd.update(bcrypt__rounds=4)
 
 engine = create_engine(
     "sqlite+pysqlite:///:memory:",
@@ -100,3 +107,48 @@ def as_manager(client, manager):
 def as_contractor(client, contractor):
     login(client, "tomas@example.com", "contractor-pw")
     return client
+
+
+# --- units and requests -------------------------------------------------------------------------
+
+@pytest.fixture
+def unit(db):
+    from datetime import date
+    from decimal import Decimal
+
+    from app.services.units import create_unit
+
+    return create_unit(
+        db,
+        unit_number="4B",
+        address="12 Rose Lane",
+        tenant_name="Rahul Mehta",
+        monthly_rent=Decimal("1200.00"),
+        rent_effective_from=date(2026, 1, 1),
+    )
+
+
+@pytest.fixture
+def second_contractor(db):
+    user = User(
+        name="Amara Diallo",
+        email="amara@example.com",
+        password_hash=hash_password("contractor-pw"),
+        role=Role.contractor,
+    )
+    db.add(user)
+    db.commit()
+    return user
+
+
+def make_request(db, unit, actor, description="Kitchen faucet leaking", priority=None):
+    from app.models import Priority
+    from app.services.requests import create_request
+
+    return create_request(
+        db,
+        unit_id=unit.id,
+        description=description,
+        priority=priority or Priority.medium,
+        actor=actor,
+    )
