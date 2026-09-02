@@ -9,7 +9,7 @@ from app.db import get_db
 from app.deps import current_user
 from app.models import User
 from app.schemas.auth import LoginRequest, UserOut
-from app.security import create_access_token, verify_password
+from app.security import create_access_token, verify_password, waste_a_password_check
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -17,9 +17,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 @router.post("/login", response_model=UserOut)
 def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)) -> User:
     user = db.scalars(select(User).where(User.email == body.email)).first()
-    # One message for both a wrong email and a wrong password: saying which was wrong tells an
-    # attacker which addresses are registered.
-    if user is None or not verify_password(body.password, user.password_hash):
+
+    # One message for both a wrong email and a wrong password, so the response does not say which
+    # was wrong — and the same amount of work either way, so the *timing* does not say it either.
+    # bcrypt is slow on purpose; skipping it when the user does not exist was leaking the answer.
+    if user is None:
+        waste_a_password_check(body.password)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Email or password is incorrect")
+    if not verify_password(body.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Email or password is incorrect")
 
     response.set_cookie(

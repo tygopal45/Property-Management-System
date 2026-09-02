@@ -10,7 +10,10 @@ services:
       MYSQL_USER: rental
       MYSQL_PASSWORD: rental
     ports:
-      - "3306:3306"
+      # Bound to the loopback interface, not 0.0.0.0. Published so the host-side API can
+      # reach it; without the 127.0.0.1 prefix anyone on the same network could connect
+      # with the development credentials below.
+      - "127.0.0.1:3306:3306"
     volumes:
       - rental-mysql-data:/var/lib/mysql
     healthcheck:
