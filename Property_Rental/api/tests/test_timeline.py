@@ -66,6 +66,9 @@ def test_a_contractor_can_leave_a_note_on_their_own_job(
     assert timeline[-1]["actor_name"] == contractor.name
 
 
+CATCH_ALL = "/{path:path}"
+
+
 def test_no_route_can_edit_or_delete_an_event(as_manager, db, unit, manager):
     """Requirement 9 says nothing can be edited or deleted, including by a manager.
 
@@ -88,14 +91,19 @@ def test_no_route_can_edit_or_delete_an_event(as_manager, db, unit, manager):
     assert event_routes == []
 
     deletes = {route.path for route in endpoints if "DELETE" in route.methods}
-    assert deletes == {
+    expected = {
         # Requirement 5: a manager can remove an assignment. The only real DELETE in the system.
         "/api/requests/{request_id}/assignments/{contractor_id}",
-        # The browser app's catch-all. It declares every method on purpose and refuses all but
-        # GET and HEAD — see the docstring in `main.py`. Named here rather than filtered out,
-        # so a second catch-all appearing one day fails this test instead of hiding behind it.
-        "/{path:path}",
     }
+    # The browser app's catch-all declares every method on purpose and refuses all but GET and
+    # HEAD — see the docstring in `main.py`. It is only registered when the built app is present,
+    # and `web/dist` is a build artifact that is not in the repository, so this suite has to pass
+    # both before and after `npm run build`. It is matched by name rather than filtered out by
+    # shape, so a *second* catch-all appearing one day fails this test instead of hiding behind
+    # the first.
+    if any(route.path == CATCH_ALL for route in endpoints):
+        expected.add(CATCH_ALL)
+    assert deletes == expected
 
     # And the catch-all's refusal is checked as behaviour, not taken on trust. A DELETE aimed at
     # an event has to be a 404 in JSON: 405 would say the path exists for some other method, and

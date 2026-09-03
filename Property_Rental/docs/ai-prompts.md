@@ -374,8 +374,36 @@ the *comment* explaining it had to be rewritten, because it gave a MySQL-specifi
 that now runs on Postgres — and a wrong reason is worse than no reason, since it will be trusted.
 About a dozen comments needed the same treatment.
 
-**The lesson, which is entry 5's and entry 8's again.** The migration itself was uneventful, and
-everything interesting came from running something rather than reading it. Re-reading the schema
-would not have told me that one of my two race fixes had become redundant, or that the other had not.
+**Then I was asked to re-check that everything had migrated, and the re-check found two more.**
+I had verified *behaviour* — tests, 51 clauses, the container — but not the schema objects, and not
+from the committed tree. Doing both turned up defects that every check so far had passed straight
+over:
+
+1. **A test that only passed on my machine.** `test_no_route_can_edit_or_delete_an_event` asserts
+   on the route table, and it hard-coded the browser app's catch-all as always present. That route
+   is only registered when `web/dist` exists — and `dist` is a build artifact that is not in the
+   repository. So the suite passed for me and **failed on a fresh clone**, which is the one place
+   it needed to pass: a reviewer's first `pytest api/tests` would have shown a failure against a
+   `SUBMISSION.md` claiming 286 green. Found by extracting `HEAD` with `git archive` and running
+   the tests there rather than in my working directory.
+
+2. **A downgrade that could not be followed by an upgrade.** On Postgres `sa.Enum` creates a
+   standalone named type, and `op.drop_table` does not drop it, so `alembic downgrade base` left
+   `role`, `priority`, `request_status` and `event_type` orphaned and the next `upgrade` died on
+   `CREATE TYPE role ...`. This could not happen on MySQL, where an ENUM is inline on the column
+   and there is no separate type to leave behind — so it is a defect the engine change introduced
+   and nothing in the forward path would ever have shown. The migration now drops the four types
+   explicitly, with `checkfirst=True` so it stays a no-op on MySQL and SQLite.
+
+The strongest single check was the cheapest: `alembic check` against Postgres, which reports
+whether the migration reproduces the models exactly. It came back **"No new upgrade operations
+detected"**, which is worth more than my reading the migration file again would have been.
+
+**The lesson, which is entry 5's and entry 8's again, twice over.** The migration itself was
+uneventful and everything interesting came from running something. Re-reading the schema would not
+have told me that one of my two race fixes had become redundant, that a test depended on a build
+artifact, or that the downgrade path was broken. Note also *where* the two new ones hid: both were
+outside the path I had been exercising all day. Verifying the thing you just built tells you less
+than verifying it the way someone else would receive it.
 
 ---

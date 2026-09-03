@@ -172,6 +172,13 @@ requirement clauses passed over HTTP against real Postgres. That part of the cla
    (w), decided in Session 0 precisely because the engine should not get a vote — so nothing had to
    be built. This is the clearest case in the project of a design decision paying for itself.
 
+**Two defects the switch introduced that only a fresh checkout showed.** A test asserting on the
+route table hard-coded a route that only exists once `web/dist` is built, so the suite passed in my
+working directory and failed on a clone. And `downgrade` left Postgres's four enum types behind —
+`op.drop_table` does not drop a standalone type — so a downgrade could not be followed by an
+upgrade. Neither is reachable on MySQL, where an ENUM is inline on the column. Both are fixed, and
+`alembic check` now confirms the migration reproduces the models exactly on Postgres.
+
 **The thing I would not have caught by reading.** Portable SQL does not imply portable *concurrency*,
 and the two race fixes were justified against MySQL's REPEATABLE READ. So I wrote
 `api/checks/concurrency.py` to re-prove both guards against whatever engine is running, and checked

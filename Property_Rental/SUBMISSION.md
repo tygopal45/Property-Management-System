@@ -65,7 +65,9 @@ cookie and be a property manager without a password. There is no longer a value 
 
 In `web/`: `npm install` and `npm run dev`. The API's own interactive documentation is at `/docs`,
 which makes every endpoint demonstrable without the UI. `pytest api/tests` runs all 286 against
-in-memory SQLite and needs no database or environment file. `npm run check` in `web/` renders every
+in-memory SQLite and needs no database, no environment file and no built frontend — I check that
+last one by extracting the repository with `git archive` and running the suite there, because one
+test used to pass only on a machine that had run `npm run build`. `npm run check` in `web/` renders every
 screen in node with stubbed data — 21 checks, which catch the things a Vite build cannot.
 
 `python checks/requirements.py` is a second kind of check and the one I would run in front of you.

@@ -137,3 +137,21 @@ def downgrade() -> None:
     op.drop_table('users')
     op.drop_table('units')
     # ### end Alembic commands ###
+
+    # Not auto-generated, and needed on Postgres. `sa.Enum` creates a standalone named type there,
+    # and dropping a table does not drop it — so a downgrade left `role`, `priority`,
+    # `request_status` and `event_type` orphaned, and the next upgrade failed on
+    # `CREATE TYPE role ...` because it already existed. A downgrade that cannot be followed by an
+    # upgrade is not a downgrade.
+    #
+    # This could not happen on MySQL, where an ENUM is inline on the column and there is no
+    # separate type to leave behind. `checkfirst=True` makes it a no-op on MySQL and SQLite, which
+    # have nothing to drop.
+    bind = op.get_bind()
+    for name, values in (
+        ('event_type', ('created', 'status_changed', 'assigned', 'unassigned', 'note')),
+        ('request_status', ('reported', 'triaged', 'scheduled', 'resolved')),
+        ('priority', ('low', 'medium', 'high', 'urgent')),
+        ('role', ('manager', 'contractor')),
+    ):
+        sa.Enum(*values, name=name).drop(bind, checkfirst=True)
