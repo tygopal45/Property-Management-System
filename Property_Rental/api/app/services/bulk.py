@@ -73,14 +73,17 @@ def _index_units(db: Session) -> tuple[dict[str, Unit], dict[str, Unit | None]]:
     """Every unit, keyed for lookup by the identifier a manager types.
 
     Matching happens in Python rather than in SQL on purpose. MySQL's default collation is
-    case-insensitive and SQLite's is not, so `WHERE unit_number = '4b'` finds unit 4B on one engine
-    and nothing on the other — a wrong answer that no test running on only one of them would catch.
-    Deciding it here means the rule is the same everywhere and is written down: an exact match
-    wins, and otherwise case and surrounding spaces are ignored.
+    case-insensitive; Postgres's and SQLite's are not. So `WHERE unit_number = '4b'` finds unit 4B
+    on one engine and nothing on the others — a wrong answer, not an error, and one that no test
+    running against a single engine would catch. Deciding it here means the rule is the same
+    everywhere and is written down: an exact match wins, and otherwise case and surrounding spaces
+    are ignored.
 
-    A fold that two units share maps to None. That cannot happen on MySQL, where the unique
-    constraint already treats 4b and 4B as the same value, but it can on SQLite, and guessing which
-    flat the manager meant is worse than saying it is ambiguous.
+    A fold that two units share maps to None, and on Postgres that branch is **reachable rather
+    than defensive**. The unique constraint on `unit_number` is case-sensitive here, so 4b and 4B
+    can genuinely both exist; on MySQL the constraint had already ruled that out. Guessing which
+    flat the manager meant is worse than reporting the row as ambiguous, so the paste says so and
+    records nothing for it.
     """
     exact: dict[str, Unit] = {}
     folded: dict[str, Unit | None] = {}

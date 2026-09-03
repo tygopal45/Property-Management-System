@@ -23,10 +23,10 @@ from app.services import events, lifecycle
 
 # --- ordering ----------------------------------------------------------------------------------
 #
-# Decision 6. The rank is written out rather than left to the column type: the same model column is
-# an ENUM on MySQL and a VARCHAR on SQLite, and a VARCHAR sorts alphabetically — high, low, medium,
-# urgent. No error either way, just a wrong order. An explicit rank does not care how the column
-# was built.
+# Decision 6. The rank is written out rather than left to the column type: the same model column
+# is a native enum on Postgres and MySQL, which sort by declaration order, but a VARCHAR on SQLite,
+# which sorts alphabetically — high, low, medium, urgent. No error either way, just a wrong order.
+# An explicit rank does not care how the column was built.
 
 def _rank(column, order: list) -> case:
     return case({value: index for index, value in enumerate(order)}, value=column)

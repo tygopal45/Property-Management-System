@@ -108,8 +108,10 @@ def test_rent_history_comes_back_in_date_order_however_it_was_entered(db):
 
 
 def test_a_unique_unit_number_is_case_sensitive_consistently(as_manager):
-    """4b and 4B are different strings. On MySQL's default collation they collide; the point of
-    this test is that whatever the engine does, the API answers 201 or 409 and never 500."""
+    """4b and 4B are different strings. They collide under MySQL's default collation and do not
+    on Postgres, so the outcome legitimately differs by engine — which is why this asserts a set
+    rather than a value. The point is that whatever the engine does, the API answers 201 or 409
+    and never 500."""
     assert post_unit(as_manager, unit_number="4b").status_code == 201
     assert post_unit(as_manager, unit_number="4B").status_code in (201, 409)
 

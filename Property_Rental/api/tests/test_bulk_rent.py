@@ -112,7 +112,8 @@ def test_the_same_unit_twice_in_one_batch_records_both(db, manager, make_unit):
 
 def test_unit_numbers_match_regardless_of_case_and_spacing(db, manager, make_unit):
     """A pasted spreadsheet cell is not typed carefully. Matching is decided in Python because
-    MySQL and SQLite disagree about whether '4b' equals '4B'."""
+    the engines disagree about whether '4b' equals '4B' — MySQL says yes, Postgres and SQLite say
+    no — and a rule that changes with the database is not a rule."""
     make_unit("4B", "1000.00", JAN)
     results = record_bulk(
         db,

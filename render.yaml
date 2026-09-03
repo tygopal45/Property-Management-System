@@ -1,11 +1,22 @@
-# Render blueprint. One web service, built from the Dockerfile, serving both the API and the
-# browser app on a single origin — see `Property_Rental/api/app/main.py` for why that is one
-# service rather than two.
+# Render blueprint. One web service and one database, both declared here, so deploying is
+# *New → Blueprint* and nothing else — there is no connection string to copy and no secret to
+# paste anywhere.
 #
-# The database is not declared here. Render's free tier offers Postgres but not MySQL, and this
-# app is built on MySQL (docs/decisions.md, Decision 5), so the database is an Aiven free MySQL
-# service and reaches this service as a DATABASE_URL secret. The SQL is deliberately portable, so
-# if that free tier disappears, moving to Render's own Postgres is a change to this one value.
+# The web service serves both the API and the built browser app on a single origin. That is
+# deliberate rather than a shortcut: two origins would mean CORS with credentials and a session
+# cookie downgraded from `SameSite=Lax` to `SameSite=None`. See `Property_Rental/api/app/main.py`.
+#
+# The database is Postgres. The app was built on MySQL with deliberately portable SQL, on the
+# stated grounds that free managed MySQL is scarce and free Postgres is not — see
+# `docs/decisions.md` Decision 5, which predicted this move before any code existed. Render's free
+# tier offers Postgres and not MySQL, so the hedge was cashed in.
+
+databases:
+  - name: property-rental-db
+    databaseName: rental
+    user: rental
+    plan: free
+    region: oregon
 
 services:
   - type: web
@@ -28,11 +39,13 @@ services:
       - key: JWT_SECRET
         generateValue: true
 
-      # Set by hand in the dashboard: it carries the database password.
-      #   mysql+pymysql://USER:PASSWORD@HOST:PORT/DBNAME
-      # Aiven requires TLS, so append: ?ssl_ca=/etc/ssl/certs/ca-certificates.crt
+      # Wired from the database above, so the password exists only inside Render. Render hands out
+      # a `postgres://` URL, which SQLAlchemy would route to psycopg 2 — config.py rewrites the
+      # scheme to name psycopg 3 rather than relying on anyone remembering to.
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: property-rental-db
+          property: connectionString
 
       # Everything here is HTTPS, so the session cookie must not travel over plain HTTP.
       - key: COOKIE_SECURE

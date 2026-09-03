@@ -7,9 +7,12 @@ from app.models.enums import EventType, Priority, RequestStatus
 
 # Trimmed, and empty once trimmed is not a value. `min_length=1` alone accepts "   ", which
 # passes validation and then sits in the list as a request with no description.
-# Capped as well as trimmed. The columns are TEXT, so without a limit a signed-in user could
-# post megabytes: MySQL errors past 64KB in strict mode and truncates silently outside it. The
-# sibling helper in `unit.py` always capped; this one only did half the job.
+# Capped as well as trimmed. The columns are TEXT, so without a limit a signed-in user could post
+# megabytes. On MySQL that hit a hard edge at 64KB — an error in strict mode, a silent truncation
+# outside it. Postgres TEXT has no such limit, which makes the cap *more* worth having rather than
+# less: unbounded input now stores fine, so nothing downstream would complain and the only
+# symptom would be a request list nobody can read. The sibling helper in `unit.py` always capped;
+# this one only did half the job.
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
 
 

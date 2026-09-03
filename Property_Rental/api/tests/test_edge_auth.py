@@ -62,8 +62,9 @@ def test_no_response_ever_contains_a_password_hash(as_manager, manager):
 
 
 def test_login_is_case_insensitive_on_the_email(client, manager):
-    """MySQL's default collation makes email comparison case-insensitive; SQLite's is not. The
-    application lowercases on both sides so the behaviour is the same on either engine."""
+    """MySQL's default collation makes email comparison case-insensitive; Postgres's and
+    SQLite's do not. The application lowercases on both sides, so the behaviour is the same on
+    every engine rather than an accident of the one it happens to be running on."""
     response = client.post("/api/auth/login",
                            json={"email": "PRIYA@example.com", "password": "manager-pw"})
     assert response.status_code == 200

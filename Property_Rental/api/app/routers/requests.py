@@ -50,8 +50,11 @@ def list_requests(
     priority: Priority | None = None,
     sort: str = Query("created_at", description="created_at, priority or status"),
     descending: bool | None = Query(None, description="Overrides each sort's default direction"),
-    # Bounded, not just positive. `page=10**18` made the OFFSET overflow what MySQL will parse
+    # Bounded, not just positive. `page=10**18` made the OFFSET overflow what MySQL would parse
     # and the request returned 500 — a one-parameter way for any signed-in user to throw errors.
+    # Postgres takes a bigint OFFSET and would not have 500ed, so the cap is no longer the thing
+    # standing between a user and an error page. It stays: no caller has a use for page one
+    # million, and a bound that is only unnecessary on the current engine is worth keeping.
     page: int = Query(1, ge=1, le=1_000_000),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),

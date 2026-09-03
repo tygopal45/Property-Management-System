@@ -1,8 +1,14 @@
 """The four fixed value sets. Declared in business order, never relied on for sorting.
 
-schema.md Decision 6: an ENUM sorts by declaration order on MySQL but alphabetically once
-SQLAlchemy renders it as VARCHAR (SQLite in tests). Ordering therefore goes through an explicit
-rank in the query, never through the column type.
+schema.md Decision 6: ordering goes through an explicit rank in the query, never through the
+column type.
+
+Both MySQL's `ENUM` and a native Postgres enum sort by declaration order, so on either of them
+`ORDER BY priority` would give business order — by accident of the column type rather than by
+anything stated. SQLAlchemy renders the same model column as `VARCHAR` on SQLite, where it sorts
+alphabetically: high, low, medium, urgent. So the rank stays explicit. A sort order that is
+correct only because of how a column happens to be stored is one migration from being wrong, and
+it fails as a wrong order rather than as an error.
 """
 
 import enum

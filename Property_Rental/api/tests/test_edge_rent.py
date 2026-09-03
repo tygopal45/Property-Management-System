@@ -101,8 +101,9 @@ def test_a_payment_against_an_archived_units_old_month_still_counts(db, make_uni
 # --- the batch ---------------------------------------------------------------------------------
 
 def test_a_unit_number_that_differs_only_by_case_is_ambiguous_not_guessed(db, manager):
-    """Two units the database will not let coexist on MySQL, but SQLite will. Guessing which flat
-    the manager meant is worse than saying it cannot be told."""
+    """Two units MySQL would not have let coexist, but Postgres and SQLite will — so on the
+    engine this now runs against, this case is reachable in production rather than hypothetical.
+    Guessing which flat the manager meant is worse than saying it cannot be told."""
     from app.models import Unit, UnitRent
 
     for number in ("4b", "4B"):

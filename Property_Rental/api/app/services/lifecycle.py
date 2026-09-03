@@ -29,17 +29,26 @@ TRANSITIONS: dict[Status, set[Status]] = {
 def assignment_count(db: Session, request_id: int) -> int:
     """How many contractors are on this request, read as a **locking** read.
 
-    The locking part is the whole point, and it is not obvious. MySQL runs at REPEATABLE READ, so
-    an ordinary SELECT inside a transaction answers from the snapshot taken at that transaction's
-    first read — not from the current committed state. Locking the request row is therefore not
-    enough on its own: a plain count still sees an assignment that a concurrent transaction has
-    already deleted and committed, so a "move to Scheduled" passes a guard that is no longer true
-    and the request lands Scheduled with nobody on it. Verified reachable 12 times out of 12
-    before this changed.
+    A guard must not answer from a stale read, and how stale a read can be depends on the engine.
 
-    A locking read in InnoDB always reads the latest committed version, which is exactly what a
-    guard needs. `FOR UPDATE` is not valid with an aggregate on MySQL, so the rows are selected
-    and counted here instead — there are only ever a handful per request.
+    On MySQL this lock was load-bearing. MySQL runs at REPEATABLE READ, so an ordinary SELECT
+    inside a transaction answers from the snapshot taken at that transaction's first read, not
+    from current committed state. Locking the request row was therefore not enough on its own: a
+    plain count still saw an assignment that a concurrent transaction had already deleted and
+    committed, so a "move to Scheduled" passed a guard that was no longer true and the request
+    landed Scheduled with nobody on it — reachable 12 times out of 12 before this changed.
+
+    On Postgres, which this now runs on, that specific failure does not arise. The default is READ
+    COMMITTED, and both this path and `unassign` lock the request row, so the two transactions
+    serialise on it and the count below then runs as a fresh statement that sees the delete. I
+    checked rather than assumed: downgrading this to an ordinary read still held 12/12 on Postgres
+    (`checks/concurrency.py` records the experiment).
+
+    It stays a locking read anyway. It costs nothing at this size, it is necessary on MySQL, and
+    the alternative is an app that is one `DATABASE_URL` away from a race nothing would catch.
+
+    `FOR UPDATE` is not valid with an aggregate on MySQL, so the rows are selected and counted
+    here rather than counted in SQL — there are only ever a handful per request.
     """
     rows = db.scalars(
         select(RequestAssignment.contractor_id)
@@ -70,6 +79,11 @@ def change_status(
     event for a change that happened once. Six concurrent identical calls produced six events.
     `SELECT ... FOR UPDATE` makes the second caller wait and then see the committed status, so it
     is refused by the "already in that state" rule instead.
+
+    Unlike the assignment count below, this one is not about any engine's isolation level — it is
+    a plain read-then-write race, and it reproduces identically on Postgres: six simultaneous
+    identical calls with this lock removed wrote up to five events for one change, 12 rounds out
+    of 12. `checks/concurrency.py` is that experiment.
     """
     db.refresh(request, with_for_update=True)
     old_status = request.status

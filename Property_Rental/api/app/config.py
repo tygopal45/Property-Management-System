@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Local default matches docker-compose.yml. Overridden in every other environment.
-    database_url: str = "mysql+pymysql://rental:rental@127.0.0.1:3306/rental"
+    database_url: str = "postgresql+psycopg://rental:rental@127.0.0.1:5432/rental"
 
     # No default, deliberately. A default here is a foot-gun: the app would boot happily with a
     # secret that is public in the repository, and anyone could forge a session cookie for user 1
@@ -27,6 +27,25 @@ class Settings(BaseSettings):
     cookie_name: str = "session"
     cookie_secure: bool = False  # True in production, where everything is HTTPS
     cors_origins: str = "http://localhost:5173"
+
+    @field_validator("database_url")
+    @classmethod
+    def name_the_driver(cls, value: str) -> str:
+        """Rewrite a bare Postgres URL to name psycopg 3 explicitly.
+
+        This exists because the hosting platform generates the value and we cannot edit it.
+        Render hands out `postgres://...`, and SQLAlchemy maps both that and a bare
+        `postgresql://` to psycopg **2**, which is not installed — so the app would die at import
+        with `ModuleNotFoundError: psycopg2` on a connection string that is perfectly correct.
+
+        Rewriting it here rather than documenting "remember to add +psycopg" is the whole point: a
+        deploy-time instruction that must be remembered is a deploy-time instruction that will be
+        forgotten, and this one fails at startup rather than at the first query.
+        """
+        for prefix in ("postgres://", "postgresql://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value[len(prefix):]
+        return value
 
     @field_validator("jwt_secret")
     @classmethod

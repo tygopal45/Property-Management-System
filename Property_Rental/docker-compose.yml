@@ -1,26 +1,27 @@
-# MySQL for local development. The API and Vite run on the host.
+# PostgreSQL for local development. The API and Vite run on the host.
 services:
   db:
-    image: mysql:8.4
-    container_name: rental-mysql
+    image: postgres:17-alpine
+    container_name: rental-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpw
-      MYSQL_DATABASE: rental
-      MYSQL_USER: rental
-      MYSQL_PASSWORD: rental
+      POSTGRES_DB: rental
+      POSTGRES_USER: rental
+      POSTGRES_PASSWORD: rental
     ports:
       # Bound to the loopback interface, not 0.0.0.0. Published so the host-side API can
       # reach it; without the 127.0.0.1 prefix anyone on the same network could connect
-      # with the development credentials below.
-      - "127.0.0.1:3306:3306"
+      # with the development credentials above.
+      - "127.0.0.1:5432:5432"
     volumes:
-      - rental-mysql-data:/var/lib/mysql
+      - rental-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-prootpw"]
+      # `pg_isready` answers only once the server will accept connections, which is later than
+      # the container reporting as started — migrations run against this immediately after.
+      test: ["CMD-SHELL", "pg_isready -U rental -d rental"]
       interval: 5s
       timeout: 5s
       retries: 20
 
 volumes:
-  rental-mysql-data:
+  rental-postgres-data:
