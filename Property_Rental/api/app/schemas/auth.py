@@ -31,3 +31,16 @@ class UserOut(BaseModel):
     role: Role
 
     model_config = {"from_attributes": True}
+
+
+class ContractorOut(BaseModel):
+    """A name and an id, for the assignment control. Notice what is absent: the email address.
+
+    The screen needs to label a dropdown, not to identify a person, so this returns the least it
+    can. A response model that happens to contain a field is a response model that leaks it.
+    """
+
+    id: int
+    name: str
+
+    model_config = {"from_attributes": True}
