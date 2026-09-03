@@ -4,6 +4,9 @@ import { api } from './api/client.js'
 import Layout from './components/Layout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Login from './pages/Login.jsx'
+import MyWork from './pages/MyWork.jsx'
+import RequestDetail from './pages/RequestDetail.jsx'
+import Requests from './pages/Requests.jsx'
 import Units from './pages/Units.jsx'
 
 export default function App() {
@@ -37,11 +40,16 @@ export default function App() {
             <Layout user={user} alertCount={alertCount} onSignedOut={() => setUser(null)} />
           }
         >
-          <Route
-            index
-            element={user.role === 'manager' ? <Dashboard /> : <Navigate to="/units" replace />}
-          />
+          {/* A manager lands on the portfolio dashboard; a contractor lands on their own work.
+              Two different jobs, so two different landing views rather than one screen that
+              quietly returns less to some callers. */}
+          <Route index element={user.role === 'manager' ? <Dashboard /> : <MyWork />} />
           <Route path="units" element={<Units />} />
+          <Route path="requests" element={<Requests user={user} />} />
+          <Route
+            path="requests/:id"
+            element={<RequestDetail user={user} onChanged={refreshAlerts} />}
+          />
           {/* Anything not built yet lands on the home route rather than on a blank page. */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

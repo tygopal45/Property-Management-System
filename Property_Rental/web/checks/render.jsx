@@ -11,12 +11,16 @@
  * `stream` through a dynamic require that esbuild cannot bundle.
  */
 
+import { readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server.browser'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import Layout from '../src/components/Layout.jsx'
 import Login from '../src/pages/Login.jsx'
 import Units from '../src/pages/Units.jsx'
 import Dashboard from '../src/pages/Dashboard.jsx'
+import MyWork from '../src/pages/MyWork.jsx'
+import Requests from '../src/pages/Requests.jsx'
+import RequestDetail from '../src/pages/RequestDetail.jsx'
 import { money, shortDate, monthName, dateTime } from '../src/format.js'
 
 const problems = []
@@ -89,6 +93,48 @@ check('Layout hides a zero badge', () => {
 
 check('Dashboard renders its loading state', () => renderToString(<Dashboard />))
 check('Units renders its loading state', () => renderToString(<Units />))
+
+const MANAGER = { id: 1, name: 'Priya Nair', role: 'manager' }
+const CONTRACTOR = { id: 4, name: 'Tomas Vidal', role: 'contractor' }
+
+function at(path, element) {
+  return renderToString(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path={path.split('?')[0]} element={element} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+check('Requests list renders for a manager', () => {
+  const html = at('/requests', <Requests user={MANAGER} />)
+  for (const control of ['Search descriptions', 'Unit', 'Status', 'Priority', 'Contractor', 'Sort']) {
+    if (!html.includes(control)) throw new Error('missing control: ' + control)
+  }
+})
+
+check('Requests list hides the contractor filter from a contractor', () => {
+  // Not a security control — the server scopes the list either way — but offering a contractor a
+  // filter over other contractors is offering a filter that can only ever return their own rows.
+  const html = at('/requests', <Requests user={CONTRACTOR} />)
+  if (html.includes('>Contractor<')) throw new Error('contractor filter shown to a contractor')
+  if (!html.includes('Search descriptions')) throw new Error('search box missing')
+})
+
+check('MyWork renders its loading state', () => at('/', <MyWork />))
+
+check('RequestDetail renders its loading state', () => at('/requests/1', <RequestDetail user={MANAGER} />))
+
+check('every priority and status has a tag colour', () => {
+  // Read by path rather than by import.meta.url: this is bundled to CJS, where that is absent.
+  // `npm run check` runs from web/, so the relative path is stable.
+  const css = readFileSync('src/index.css', 'utf8')
+  for (const name of ['urgent', 'high', 'matched', 'overpaid', 'partial', 'unpaid', 'resolved', 'scheduled']) {
+    if (!css.includes('.tag.' + name)) throw new Error('no .tag.' + name + ' rule')
+  }
+})
+
 
 if (problems.length) { console.log('\n' + problems.length + ' FAILED'); process.exit(1) }
 console.log('\nall render checks passed')

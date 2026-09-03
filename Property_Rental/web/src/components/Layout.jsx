@@ -18,6 +18,7 @@ export default function Layout({ user, alertCount, onSignedOut }) {
       ]
     : [
         { to: '/', label: 'My work', end: true },
+        { to: '/requests', label: 'All my requests' },
         { to: '/units', label: 'Units' },
       ]
 

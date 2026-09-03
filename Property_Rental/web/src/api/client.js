@@ -75,6 +75,8 @@ export const api = {
   unassign: (id, contractorId) =>
     request(`/requests/${id}/assignments/${contractorId}`, { method: 'DELETE' }),
 
+  contractors: () => request('/contractors'),
+
   dashboard: () => request('/dashboard'),
   alerts: () => request('/alerts'),
   dismissAlert: (unitId, periodMonth) =>
