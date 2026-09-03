@@ -51,8 +51,13 @@ services:
       - key: COOKIE_SECURE
         value: "true"
 
-      # One origin, so this is belt and braces rather than load-bearing. Set it to the service's
-      # own URL once Render has assigned one. A wildcard is rejected by config.py on purpose.
+      # Set this to the Vercel URL, comma-separated with this service's own URL.
+      #
+      # It is close to belt and braces even so. The browser app on Vercel reaches the API through
+      # a rewrite in `web/vercel.json`, so the browser treats it as same-origin and never sends a
+      # preflight — the CORS middleware does not fire on the path that matters. This is here so
+      # the allowed origin is stated rather than assumed. A wildcard is rejected by config.py on
+      # purpose, because a wildcard cannot be combined with credentialed requests.
       - key: CORS_ORIGINS
         sync: false
 

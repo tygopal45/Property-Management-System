@@ -1,8 +1,21 @@
 // One place that talks to the API. Every call sends the login cookie and nothing else —
 // the token is httpOnly, so this file never sees it and cannot leak it.
 
+// Where the API lives, and it is empty on purpose.
+//
+// Empty means every call is a *relative* `/api/...`, so the browser treats the API as part of
+// whatever origin served the page. That is what keeps the login cookie `SameSite=Lax`: a
+// same-origin request needs no CORS and no third-party cookie. It holds in all three places this
+// app runs — behind the Vite dev proxy, served by the API process itself, and on Vercel, where
+// `vercel.json` rewrites `/api/*` to the Render service so the browser still sees one origin.
+//
+// Setting `VITE_API_BASE_URL` points the app at an API on a genuinely different origin. It works,
+// but it makes the session cookie third-party, which Safari and Brave block by default — so it is
+// an escape hatch, not the path we deploy. See `web/.env.example` and `docs/decisions.md`.
+const BASE = (import.meta.env?.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+
 async function request(path, { method = 'GET', body } = {}) {
-  const response = await fetch(`/api${path}`, {
+  const response = await fetch(`${BASE}/api${path}`, {
     method,
     credentials: 'include',
     headers: body ? { 'Content-Type': 'application/json' } : {},
@@ -84,5 +97,5 @@ export const api = {
   rentRoll: (params) => request(`/rent/roll${query(params)}`),
   bulkRent: (body) => request('/rent/bulk', { method: 'POST', body }),
   // Not fetched — the browser downloads it, so this is a URL rather than a call.
-  rentRollCsvUrl: (params) => `/api/rent/roll.csv${query(params)}`,
+  rentRollCsvUrl: (params) => `${BASE}/api/rent/roll.csv${query(params)}`,
 }

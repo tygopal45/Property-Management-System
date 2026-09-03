@@ -5,7 +5,7 @@
  * that is not a function, a map over undefined, a bad destructure, and the role rule below.
  *
  * It deliberately does not try to test effects or fetches. Those are the API's behaviour, and the
- * API has 281 tests over it; duplicating them here with a mocked `fetch` would test the mock.
+ * API has 286 tests over it; duplicating them here with a mocked `fetch` would test the mock.
  *
  * `react-dom/server.browser` rather than `react-dom/server`, because the node build reaches for
  * `stream` through a dynamic require that esbuild cannot bundle.
@@ -25,6 +25,7 @@ import RentRoll, { parsePaste } from '../src/pages/RentRoll.jsx'
 import Alerts from '../src/pages/Alerts.jsx'
 import UnitDetail from '../src/pages/UnitDetail.jsx'
 import { money, shortDate, monthName, dateTime } from '../src/format.js'
+import { api } from '../src/api/client.js'
 
 const problems = []
 function check(name, fn) {
@@ -179,6 +180,23 @@ check('every priority and status has a tag colour', () => {
                   'scheduled', 'not_due', 'overdue', 'underpaid', 'unmatched']
   for (const name of states) {
     if (!css.includes('.tag.' + name)) throw new Error('no .tag.' + name + ' rule')
+  }
+})
+
+check('the API is addressed relatively, so the session cookie stays first-party', () => {
+  // This is the deployment rule from `decisions.md` Decision 11, asserted rather than trusted.
+  //
+  // Every call must be a relative `/api/...`. An absolute URL here means the browser is talking
+  // to a different origin, which forces the session cookie to `SameSite=None` — a third-party
+  // cookie that Safari and Brave block outright, so login silently stops working for those users.
+  // Nothing else in the checks or the test suite would notice: the build succeeds, every screen
+  // renders, and the failure only appears in a browser that is not the developer's.
+  //
+  // `rentRollCsvUrl` is the one URL built for the browser to follow rather than for `fetch`, so
+  // it is the readable proof that the base is empty by default.
+  const url = api.rentRollCsvUrl({ month: '2026-09-01' })
+  if (!url.startsWith('/api/')) {
+    throw new Error('API base is not relative — got ' + url)
   }
 })
 

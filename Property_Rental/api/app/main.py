@@ -100,9 +100,16 @@ def health(response: Response) -> dict:
 #
 # Two origins would mean CORS with credentials, and a login cookie that has to become
 # `SameSite=None` to survive the trip — which is the exact protection `config.py` refuses to give
-# up when it rejects a wildcard origin. One origin means the cookie stays `SameSite=Lax`, the
-# CORS middleware above never fires for real traffic, and there is one URL and one cold start
-# instead of two.
+# up when it rejects a wildcard origin. Worse than the theory: a `SameSite=None` cookie is a
+# third-party cookie, and Safari and Brave block those by default, so login would simply not work
+# for some reviewers. One origin means the cookie stays `SameSite=Lax` and the CORS middleware
+# above never fires for real traffic.
+#
+# The browser app is *also* published on Vercel, and that does not change any of the above,
+# because it does not introduce a second origin from the browser's point of view: `web/vercel.json`
+# rewrites `/api/*` to this service, so the page and the API share the Vercel origin and the cookie
+# stays first-party there too. This mount is what makes the Render URL a complete application on
+# its own — which is the fallback when Vercel's proxy times out against a sleeping free instance.
 #
 # If `web/dist` has not been built, the API still runs. Nothing here is required for `/api`.
 
