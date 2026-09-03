@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { api } from './api/client.js'
 import Layout from './components/Layout.jsx'
+import Alerts from './pages/Alerts.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Login from './pages/Login.jsx'
 import MyWork from './pages/MyWork.jsx'
 import RequestDetail from './pages/RequestDetail.jsx'
+import RentRoll from './pages/RentRoll.jsx'
 import Requests from './pages/Requests.jsx'
+import UnitDetail from './pages/UnitDetail.jsx'
 import Units from './pages/Units.jsx'
 
 export default function App() {
@@ -44,13 +47,28 @@ export default function App() {
               Two different jobs, so two different landing views rather than one screen that
               quietly returns less to some callers. */}
           <Route index element={user.role === 'manager' ? <Dashboard /> : <MyWork />} />
-          <Route path="units" element={<Units />} />
+          <Route path="units" element={<Units user={user} />} />
+          <Route
+            path="units/:id"
+            element={<UnitDetail user={user} onChanged={refreshAlerts} />}
+          />
           <Route path="requests" element={<Requests user={user} />} />
           <Route
             path="requests/:id"
             element={<RequestDetail user={user} onChanged={refreshAlerts} />}
           />
-          {/* Anything not built yet lands on the home route rather than on a blank page. */}
+          {/* Rent and alerts are manager-only, and the server refuses them for a contractor
+              anyway. Routing a contractor home is friendlier than rendering a screen whose every
+              call comes back 403 — the guard that matters is still the one on the server. */}
+          <Route
+            path="rent"
+            element={user.role === 'manager' ? <RentRoll onChanged={refreshAlerts} /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="alerts"
+            element={user.role === 'manager' ? <Alerts onChanged={refreshAlerts} /> : <Navigate to="/" replace />}
+          />
+          {/* Anything else lands on the home route rather than on a blank page. */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

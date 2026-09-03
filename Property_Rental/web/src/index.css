@@ -145,3 +145,27 @@ button.primary:hover:not(:disabled) { background: #1b44bd; }
 .chart .fill.empty { background: var(--line); }
 .chart .count { font-size: 0.8125rem; font-weight: 600; text-align: center; }
 .chart .week { font-size: 0.6875rem; color: var(--muted); text-align: center; margin-top: 0.3rem; }
+
+/* --- additions for the rent, alerts and unit screens --------------------------------------- */
+
+/* The CSV export is a link, not a button — the browser saves the file itself. It is dressed as a
+   button because it does what the buttons beside it do. */
+.button-link {
+  display: inline-block;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+}
+.button-link:hover { background: var(--ground); }
+
+tfoot th { background: var(--paper); border-top: 2px solid var(--line); border-bottom: none; }
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875em; }
+
+/* The remaining rent states and bulk outcomes. `not_due` and `unmatched` are deliberately grey:
+   neither is a problem with the money, they are both "no rent is being collected here". */
+.tag.underpaid { background: #fff4e0; color: var(--warn); border-color: #f2ddb4; }
+.tag.not_due, .tag.unmatched { background: var(--ground); color: var(--muted); }
