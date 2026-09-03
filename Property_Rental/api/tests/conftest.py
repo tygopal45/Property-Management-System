@@ -152,3 +152,53 @@ def make_request(db, unit, actor, description="Kitchen faucet leaking", priority
         priority=priority or Priority.medium,
         actor=actor,
     )
+
+
+# --- rent, alerts and the dashboard ---------------------------------------------------------------
+
+@pytest.fixture
+def make_unit(db):
+    """A unit with one rent rate, for tests that need several units with different rents."""
+    from datetime import date
+    from decimal import Decimal
+
+    from app.services.units import create_unit
+
+    def _make(unit_number: str, rent: str = "1000.00", start: date = date(2026, 1, 1),
+              tenant: str = "A Tenant", address: str = "1 Test Road"):
+        return create_unit(
+            db,
+            unit_number=unit_number,
+            address=address,
+            tenant_name=tenant,
+            monthly_rent=Decimal(rent),
+            rent_effective_from=start,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def pay(db, manager):
+    """Record a payment against a unit for a month."""
+    from decimal import Decimal
+
+    from app.services.rent import record_payment
+
+    def _pay(unit, amount: str, month):
+        return record_payment(
+            db,
+            unit_id=unit.id,
+            amount=Decimal(amount),
+            period_month=month,
+            recorded_by=manager,
+        )
+
+    return _pay
+
+
+def months_ago(count: int):
+    """A month relative to the current one, so tests do not go stale as the calendar moves."""
+    from app.services.rent import add_months, month_start, today_utc
+
+    return add_months(month_start(today_utc()), -count)
