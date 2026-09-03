@@ -75,17 +75,39 @@ def test_no_route_can_edit_or_delete_an_event(as_manager, db, unit, manager):
     """
     from app.main import app
 
+    # `app.routes` also holds the static-file Mount that serves the browser app, and a Mount has
+    # no `.methods`. Filtering to routes that declare methods is the honest fix: a Mount cannot
+    # carry a DELETE, and skipping it silently with `getattr` would have hidden the day it could.
+    endpoints = [route for route in app.routes if getattr(route, "methods", None)]
+
     event_routes = [
-        (sorted(r.methods), r.path)
-        for r in app.routes
-        if "event" in r.path or "timeline" in r.path
+        (sorted(route.methods), route.path)
+        for route in endpoints
+        if "event" in route.path or "timeline" in route.path
     ]
     assert event_routes == []
 
-    for route in app.routes:
-        if "DELETE" in (route.methods or set()):
-            # The only DELETE in the system removes an assignment, which requirement 5 requires.
-            assert route.path == "/api/requests/{request_id}/assignments/{contractor_id}"
+    deletes = {route.path for route in endpoints if "DELETE" in route.methods}
+    assert deletes == {
+        # Requirement 5: a manager can remove an assignment. The only real DELETE in the system.
+        "/api/requests/{request_id}/assignments/{contractor_id}",
+        # The browser app's catch-all. It declares every method on purpose and refuses all but
+        # GET and HEAD — see the docstring in `main.py`. Named here rather than filtered out,
+        # so a second catch-all appearing one day fails this test instead of hiding behind it.
+        "/{path:path}",
+    }
+
+    # And the catch-all's refusal is checked as behaviour, not taken on trust. A DELETE aimed at
+    # an event has to be a 404 in JSON: 405 would say the path exists for some other method, and
+    # the HTML shell with a 200 would turn a missing endpoint into a parse error elsewhere.
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as client:
+        for path in ("/api/requests/1/events/1", "/api/events/1", "/api/nope"):
+            for method in ("delete", "patch", "put", "post", "get"):
+                response = getattr(client, method)(path)
+                assert response.status_code == 404, f"{method.upper()} {path}"
+                assert response.headers["content-type"].startswith("application/json")
 
 
 def test_an_event_row_is_untouched_after_every_route_that_writes_the_request(
