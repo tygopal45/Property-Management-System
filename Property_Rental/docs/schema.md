@@ -631,8 +631,11 @@ Two rows in that table are mistakes I actually made and had to undo, not alterna
 paper.
 
 The **ENUM ordering** one is the more embarrassing, because it would not have failed anywhere I was
-looking. It was correct on MySQL and silently wrong on Postgres, so no error and no failing test —
-just a wrong sort order waiting for a database migration that might never happen.
+looking. It was correct on MySQL and silently wrong wherever SQLAlchemy renders the column as
+`VARCHAR` — SQLite, where every test runs — so no error and no failing test, just a wrong sort order.
+(My first write-up of this said it was wrong on Postgres. That was itself wrong, and
+`decisions.md` Decision 6 keeps the correction: a native Postgres enum sorts by declaration order.
+Now that the app actually runs on Postgres I have checked rather than asserted it.)
 
 The **single `monthly_rent` column** one is the more serious. It would have broken on the live system,
 for real tenants, the first time anyone put the rent up. I found it by walking one specific scenario
@@ -684,10 +687,22 @@ raising a fresh alert every month for ever.
 independent overdue months: three alert rows, a badge counting three, and dismissing September leaves
 July and August visible. It falls out of the same key that makes §5.2 work.
 
-**No SQL that only works on MySQL.** Every query goes through SQLAlchemy. This is insurance: free
-MySQL hosting is harder to find than free Postgres, and if it falls through, switching is a
-`DATABASE_URL` change and one migration re-run instead of a rewrite. It has already paid off once —
-see the ENUM ordering row in §9.
+**No SQL that only works on one engine.** Every query goes through SQLAlchemy. This was insurance:
+free MySQL hosting is harder to find than free Postgres, and if it fell through, switching should be
+a `DATABASE_URL` change and one migration re-run instead of a rewrite.
+
+**The insurance was claimed.** The app now runs on PostgreSQL 17, because the chosen host offers free
+Postgres and not free MySQL — the exact scenario this rule was written for. The single migration ran
+against an empty Postgres unchanged, all 286 tests passed untouched, and all 51 requirement clauses
+passed over HTTP against the new engine.
+
+What the rule did *not* cover is worth stating, because it is the honest limit of "portable SQL":
+collation. MySQL compares strings case-insensitively by default and Postgres does not, so unique
+indexes and equality both changed behaviour without a line of SQL changing. That cost nothing here
+only because §10's other rule — decide engine-dependent behaviour in the application, not in the
+engine — had already moved email and unit-number matching into Python. `decisions.md` Decision 5
+records the full cost, and it also records the part portability says nothing about at all:
+concurrency behaviour, which had to be re-proved by running it.
 
 ---
 
@@ -731,8 +746,8 @@ see the ENUM ordering row in §9.
 ## 12. What breaks first at 100x the data
 
 100x the stated scale is roughly 4,000 units, ~48,000 payments per year, ~20,000 requests and
-~120,000 events. None of that is large for MySQL. The first thing to degrade is not a table size — it
-is one derived query.
+~120,000 events. None of that is large for Postgres. The first thing to degrade is not a table
+size — it is one derived query.
 
 **The alerts endpoint goes first.** Alerts derive over *(unit × month)* pairs, so unlike every other
 query in the system they grow in **two dimensions at once**: 4,000 units across the 12-month window
@@ -768,9 +783,11 @@ chattiness:
 no index can help. `description` is a `TEXT` column, and searching inside it means
 `LIKE '%term%'`, which a normal index cannot serve — the database has to read every row. At a few
 hundred requests that is invisible. At 20,000 it is a full table scan, and it runs twice, because the
-`total` for pagination needs its own `COUNT` over the same condition. The fix is a MySQL full-text
-index on `description`, which is the one place the portability rule in §10 would have to bend, since
-full-text syntax differs between MySQL and Postgres.
+`total` for pagination needs its own `COUNT` over the same condition. The fix on Postgres is a `tsvector` column
+with a GIN index, or a trigram index (`pg_trgm`) if substring matching has to be kept exactly as it
+is today. Either one is the place the portability rule in §10 finally has to bend, because full-text
+syntax has no common form across engines — MySQL's answer would have been a `FULLTEXT` index and the
+query would not have transferred.
 
 **Third is the rent roll CSV.** It grows in one dimension rather than two, and it streams rows out as
 it formats them rather than building the whole file in memory first, so at 100x it gets slow rather
@@ -779,8 +796,8 @@ starts streaming, so the first byte waits for the whole portfolio.
 
 **And a new one that only exists now that requirement 7 is built: the bulk batch loads every unit.**
 `services/bulk.py` reads the entire units table into a dictionary so that identifier matching happens
-in Python rather than in SQL — which is deliberate, because MySQL and SQLite disagree about whether
-`4b` equals `4B` (§10, and `decisions.md` (w)). At 4,000 units that dictionary is still small; the
+in Python rather than in SQL — which is deliberate, because the engines disagree about whether
+`4b` equals `4B`: MySQL says yes, Postgres and SQLite say no (§10, and `decisions.md` (w)). At 4,000 units that dictionary is still small; the
 honest ceiling is tens of thousands, after which the matching has to move into SQL with an explicit
 collation, and the portability rule has to bend for it the same way the full-text index bends.
 
@@ -803,7 +820,7 @@ I write every rule above as a plain function that takes values and returns a val
 be tested on its own without going through HTTP.
 
 The list below was written from the requirements before any code was written, so it is a
-specification rather than a report. **Every item is now marked *(written)*: 281 tests pass in about
+specification rather than a report. **Every item is now marked *(written)*: 286 tests pass in about
 four seconds.** The wording of each item is the one from the original list, so it can be read against
 what was promised rather than against what was convenient to build.
 

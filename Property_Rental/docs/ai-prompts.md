@@ -324,3 +324,58 @@ thing that keeps finding real problems in this project is being forced to produc
 not being asked to check.
 
 ---
+
+## 9. Moving the database to Postgres — **found a claim of mine that did not transfer**
+
+**Prompt.** "Prepare a plan to switch to postgres sql."
+
+**Why it came up.** Not because anything was wrong with MySQL. The hosting decision forced it: the
+platform offers free Postgres and not free MySQL, so staying on MySQL meant a second provider for the
+database alone and a connection string pasted between two dashboards. `decisions.md` Decision 5 had
+predicted this exact scenario before any code was written, so this was cashing in a hedge rather than
+repairing a mistake.
+
+**What came back, and what I checked before believing it.** The plan said the switch would be cheap
+because "every query goes through the ORM". That is *my own* claim from Decision 5, quoted back at
+me, and I have been caught by exactly that before — entry 3's ENUM ordering and entry 7's confident
+statements about a database I had not run. So I tested each part of it:
+
+- **True:** one Alembic migration, no dialect imports, `sa.Enum` created its four types with
+  declaration order intact, money stayed `numeric(10,2)`, both `CHECK` constraints carried, 286 tests
+  passed untouched, and all 51 requirement clauses passed over HTTP against real Postgres.
+- **True but nearly a trap:** the description search already used `.ilike()`. A plain `.like()` would
+  have been case-insensitive on MySQL and case-sensitive on Postgres — requirement 6's search quietly
+  matching less, with no error and no failing test, because the tests run on SQLite where `LIKE` is
+  case-insensitive for ASCII. That one was luck as much as judgement.
+- **False, and it mattered:** the plan treated portable SQL as implying portable *behaviour*. Two
+  things escape it. Collation — MySQL compares strings case-insensitively by default and Postgres
+  does not, so the unique index on `unit_number` stopped treating `4b` and `4B` as one value and
+  lowercasing email went from tidiness to the only thing preventing duplicate accounts. And
+  concurrency, below.
+
+**The finding I would put in front of you.** Both concurrency fixes from entry 7 were justified
+against MySQL's isolation level, and an isolation level is not something portable SQL says anything
+about. So I wrote `api/checks/concurrency.py` to re-prove both guards against whatever engine is
+running — and then, because a probe that passes might only be a weak probe, checked that it can
+actually fail. Removing the request-row lock reproduces duplicate timeline events **12 rounds out of
+12** on Postgres, up to five events for one change, so the probe is real and that fix is
+engine-independent.
+
+The other guard behaves differently, and this is the part worth knowing: removing the locking read
+from `assignment_count` does **not** reintroduce the bug on Postgres — 12/12 still held. That is not
+the probe being blunt. Both code paths already lock the request row, so the two transactions
+serialise on it, and under Postgres's READ COMMITTED the count then runs as a fresh statement that
+sees the committed delete. Under MySQL's REPEATABLE READ it answered from the transaction's original
+snapshot and missed it. So a fix I had described as necessary is, on this engine, redundant.
+
+I kept it. It costs nothing at this size, it is necessary if the `DATABASE_URL` ever points back at
+MySQL, and "redundant on the engine we happen to run today" is not a reason to remove a guard. But
+the *comment* explaining it had to be rewritten, because it gave a MySQL-specific reason for code
+that now runs on Postgres — and a wrong reason is worse than no reason, since it will be trusted.
+About a dozen comments needed the same treatment.
+
+**The lesson, which is entry 5's and entry 8's again.** The migration itself was uneventful, and
+everything interesting came from running something rather than reading it. Re-reading the schema
+would not have told me that one of my two race fixes had become redundant, or that the other had not.
+
+---

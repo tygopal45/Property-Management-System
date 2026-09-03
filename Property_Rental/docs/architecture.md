@@ -16,7 +16,7 @@
 | Browser | **React 18 + Vite**, plain JavaScript | Fastest thing I write. No TypeScript: on a short build the type errors cost more time than they save |
 | API | **FastAPI** (Python 3.12) | Request validation and the interactive `/docs` page come free, and that page makes the API demonstrable on its own before any UI exists |
 | ORM | **SQLAlchemy 2.0** + **Alembic** | Models are the single source of truth for the schema; Alembic diffs them into migration files that are committed and reviewable |
-| Database | **MySQL 8** | Run locally in Docker. Every query goes through the ORM with no MySQL-specific syntax — see Decision 5 |
+| Database | **PostgreSQL 17** | Run locally in Docker, managed in production. Built on MySQL 8 first, with every query through the ORM and no engine-specific syntax, and moved when the host offered free Postgres and not free MySQL — the switch Decision 5 was written to make cheap |
 | Auth | **bcrypt** (passlib) + **JWT in an httpOnly cookie** | JavaScript cannot read the cookie, so a cross-site-scripting bug cannot steal the token and send it elsewhere. See the honest limits below |
 
 ## The three pieces
@@ -38,8 +38,8 @@ rejects contractors with a 403, and I scope contractor queries by a join to `req
 so a contractor cannot see a request they are not on. **The role check is on the server**, not in the
 UI — hiding a button stops nobody who can send an HTTP request.
 
-**`mysql` — the database.** Holds every stored fact. Structural constraints live here (foreign keys,
-`NOT NULL`, the uniqueness rules) precisely so they hold no matter what code runs.
+**`postgres` — the database.** Holds every stored fact. Structural constraints live here (foreign
+keys, `NOT NULL`, the uniqueness rules) precisely so they hold no matter what code runs.
 
 ### One consequence of that rule, which looks like a bug and is not
 
@@ -111,20 +111,27 @@ web/                    the React app
     components/
 · docs/                 the five required documents
 · images/               er-diagram.png
-· docker-compose.yml    MySQL 8.4 for local development
+· docker-compose.yml    PostgreSQL 17 for local development
 ```
 
 ## Where each piece runs
 
-Locally, and this works today: MySQL in Docker, the API on `localhost:8000` with its interactive
+Locally, and this works today: Postgres in Docker, the API on `localhost:8000` with its interactive
 documentation at `/docs`, and Vite's dev server on `localhost:5173` proxying `/api` to the API — so the
 browser sees one origin and the login cookie travels with no CORS or `SameSite` argument in
 development.
 
-**Hosting is not decided yet.** It is last-day work, and the choice is recorded in [`SUBMISSION.md`](../SUBMISSION.md)
-once made. The one constraint set in advance: no engine-specific SQL anywhere, so if free MySQL
-hosting falls through, moving to Postgres is a `DATABASE_URL` change and one migration re-run rather
-than a rewrite.
+**Hosting: one Render service and one Render Postgres**, declared together in `render.yaml` at the
+repository root, so deploying is *New → Blueprint* with no connection string to copy. The API
+process serves the built browser app, so there is one origin, one URL and one cold start — and the
+session cookie stays `SameSite=Lax` rather than being downgraded to `SameSite=None` to cross a
+domain boundary.
+
+That hosting choice is what moved the database. The constraint set in advance — no engine-specific
+SQL anywhere — was written for exactly this: free MySQL hosting is scarce, free Postgres is not, and
+when it came to it the move was a driver swap and a `DATABASE_URL` change rather than a rewrite.
+`decisions.md` Decision 5 records what it actually cost, including the two things portable SQL does
+not cover: collation and concurrency.
 
 Connection strings, the JWT secret and the grace period are environment variables in every
 environment, never committed. `GRACE_PERIOD_DAYS` defaults to **5** — see `schema.md` §5.1 for why

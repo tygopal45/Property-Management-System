@@ -118,7 +118,11 @@ it rejected a move, which means the rule and its explanation have to be the same
 
 ---
 
-## Decision 5 — MySQL, but with deliberately portable SQL
+## Decision 5 — MySQL, but with deliberately portable SQL — and then Postgres
+
+> **Outcome, written after the fact: the hedge was used.** The app now runs on PostgreSQL 17. The
+> switch is recorded at the bottom of this decision, including what it actually cost against what
+> this section predicted it would cost.
 
 **Chose.** MySQL 8, with every query going through the SQLAlchemy ORM or Core and no MySQL-specific
 syntax anywhere.
@@ -137,6 +141,47 @@ instead of a rewrite.
 
 Decision 6 is this rule doing its job.
 
+### What the switch actually cost
+
+The prediction was right about the risk and slightly optimistic about the price. Render's free tier
+offers Postgres and not MySQL, exactly as anticipated, so keeping MySQL would have meant a second
+provider holding the database and a connection string pasted by hand. Postgres removed both.
+
+It was not quite "a `DATABASE_URL` change and one migration re-run", and it is worth being precise
+about the gap, because the gap is the interesting part:
+
+**What genuinely was free.** The single Alembic migration ran against an empty Postgres unchanged —
+no dialect imports, `sa.Enum` created its four types with declaration order intact, money stayed
+`numeric(10,2)`, and both `CHECK` constraints carried. All 286 tests passed untouched, and all 51
+requirement clauses passed over HTTP against real Postgres. That part of the claim held exactly.
+
+**What was not.** Three things, none of which is SQL:
+
+1. **The driver, and a trap in it.** `pymysql` out, `psycopg` in. The trap: Render generates the
+   `DATABASE_URL` itself as `postgres://…`, which SQLAlchemy maps to psycopg **2**, which is not
+   installed — so a perfectly correct connection string would kill the app at import. `config.py`
+   now rewrites the scheme rather than relying on a human to remember `+psycopg`.
+2. **Comments, not code.** A dozen explanations gave *MySQL-specific reasons* for engine-neutral
+   code. They were true when written and are now wrong, and a wrong reason is worse than no reason
+   because it will be trusted.
+3. **One behavioural difference the SQL does not show.** MySQL's default collation is
+   case-insensitive; Postgres's is not. The unique index on `unit_number` no longer treats `4b` and
+   `4B` as the same value, so `bulk.py`'s "ambiguous identifier" branch changed from unreachable to
+   reachable, and lowercasing email in `schemas/auth.py` went from tidiness to the only thing
+   stopping two accounts on one address. Both were already handled — by interpretations (m) and
+   (w), decided in Session 0 precisely because the engine should not get a vote — so nothing had to
+   be built. This is the clearest case in the project of a design decision paying for itself.
+
+**The thing I would not have caught by reading.** Portable SQL does not imply portable *concurrency*,
+and the two race fixes were justified against MySQL's REPEATABLE READ. So I wrote
+`api/checks/concurrency.py` to re-prove both guards against whatever engine is running, and checked
+that it can actually fail: removing the request-row lock reproduces duplicate timeline events 12
+rounds out of 12 on Postgres. The other guard, though, does **not** fail on Postgres when its lock
+is removed — under READ COMMITTED the request-row lock is already sufficient, where under MySQL it
+was not. That lock stays anyway; it costs nothing and the app should not be one `DATABASE_URL` away
+from a race. Neither of those facts is visible in the schema, and neither would have been found by
+re-reading it.
+
 ---
 
 ## Decision 6 — Sorting by priority and status uses an explicit rank, not the ENUM's declaration order
@@ -147,8 +192,7 @@ rank in the `ORDER BY`. The ranks are declared in `app/models/enums.py` as `PRIO
 and asserts the order is urgent-first rather than the alphabetical `high, low, medium, urgent` — which
 is what the same query returns on SQLite if the rank is left out.
 
-**Rejected.** Relying on MySQL's ENUM ordering, which sorts by declaration order and therefore gives
-the correct answer for free.
+**Rejected.** Relying on the ENUM's declaration order, which on MySQL sorts correctly for free.
 
 **Why.** Because that ordering is not a property of the four words `low, medium, high, urgent`. It is a
 property of how the column happens to be physically built, and I do not control that as directly as I
@@ -178,6 +222,13 @@ database I had not tested against, inside the very decision I was holding up as 
 an untested assumption. The decision itself survives — the reasoning above is the real one, and it is
 about how the column is rendered rather than about which engine it lands on — but the argument I first
 gave for it did not.
+
+**And then the move to Postgres tested it.** The native Postgres enum sorts by declaration order,
+confirmed against the running database: `priority` reports `low, medium, high, urgent`. So on this
+engine `ORDER BY priority` would in fact have given business order, and the explicit rank was not
+what saved requirement 6 here. That is the right outcome rather than a wasted four lines — the rank
+is why the sort needed no thought during a database migration, and it is still the only reason the
+order is correct on SQLite, which is where all 286 tests run.
 
 The same audit also caught that `PATCH /requests/{id}` should not accept an assignments field at all,
 rather than accept it and then check the caller's role. If the field does not exist, there is no rule to
@@ -314,7 +365,7 @@ answer is a decision rather than a shrug.
 | j | Which direction each sort runs | Newest first; most urgent first; workflow order for status | The useful default in each case. Requirement 6 asks for sorting by those three fields and does not name a direction, so the direction is a parameter with a sensible default rather than a fixed choice |
 | k | Whether requests on archived units appear in the request list | Yes | Requirement 2 says archiving must not destroy a unit's maintenance requests. A repair on an archived unit is still a real repair; the unit filter is there to narrow it |
 | l | Who may leave a note | Both roles — a contractor only on a request assigned to them | Notes are how a contractor reports progress, which is the point of requirement 9 listing them. The scoping is rule (a) again |
-| m | Whether an email is case-sensitive | Lowercased on the way in, on both write and login | Nothing in the brief says. Left alone it is not a choice at all but an accident of the engine: MySQL's default collation compares case-insensitively, SQLite's does not, so the same login succeeds on one and fails on the other. Decision 5 promises portable behaviour, and this is exactly the sort of thing that quietly breaks it |
+| m | Whether an email is case-sensitive | Lowercased on the way in, on both write and login | Nothing in the brief says. Left alone it is not a choice at all but an accident of the engine: MySQL's default collation compares case-insensitively, Postgres's and SQLite's do not, so the same login succeeds on one and fails on the others. Decision 5 promises portable behaviour, and this is exactly the sort of thing that quietly breaks it. **Now load-bearing:** on Postgres this is also the only thing stopping `Priya@example.com` and `priya@example.com` registering as two accounts, which MySQL's collation had been silently preventing |
 | n | Whether text fields are trimmed | Yes, and empty-after-trimming is refused | `min_length=1` accepts `"   "`, which then sits in the list as a request with no description. Trimming also stops `" 4B"` and `"4B"` being two different units, which would make the uniqueness rule stop helping |
 | o | When "a short grace period" of five days makes a month overdue | The **6th**. The 1st to the 5th are grace | Five days of grace has to mean five days. Written the other way it would be the 7th, which is six days of grace for a setting that says five — and it would never have looked wrong |
 | p | Whether a bulk row is judged against its own amount or the month's running total | Its own amount | Requirement 7 says each row is classified by whether "the amount received equals that unit's monthly rent", which is a statement about the row. So a unit paying 600 twice against a rent of 1200 gets two *underpaid* rows and a *matched* month, and both are true — `schema.md` §5.1 |
@@ -324,7 +375,7 @@ answer is a decision rather than a shrug.
 | t | Whether contractors with nothing assigned appear in the by-contractor breakdown | Yes, at zero | A manager reading that breakdown is usually asking who can take the next job, and the people to give it to are exactly the rows that would be missing if the zeroes were dropped |
 | u | How far back the alerts list looks | Twelve months | Without a bound the badge counts upward for ever once a unit falls behind. A debt older than a year is a collections problem, not something a navigation badge should keep counting. Arrears before the window are still in the rent roll, which takes any month |
 | v | Whether the alerts list is one row per unit or one per (unit, month) | Per **pair** | Requirement 10 is written about one unit, but the recurrence clause only works because the month is in the key (§5.2). A unit three months behind therefore shows three alerts and a badge of three, which is also more use than one row that hides how far behind it is |
-| w | Whether a unit identifier in a pasted batch is case-sensitive | An exact match wins; otherwise case and surrounding spaces are ignored | The same trap as (m). MySQL's default collation matches `4b` to `4B` and SQLite's does not, so left to the engine this is an accident rather than a decision. Deciding it in Python means it behaves the same everywhere, and a pasted spreadsheet cell is not typed carefully |
+| w | Whether a unit identifier in a pasted batch is case-sensitive | An exact match wins; otherwise case and surrounding spaces are ignored | The same trap as (m). MySQL's default collation matches `4b` to `4B`; Postgres and SQLite do not, so left to the engine this is an accident rather than a decision. Deciding it in Python means it behaves the same everywhere, and a pasted spreadsheet cell is not typed carefully. **Now load-bearing:** the unique index on `unit_number` is case-sensitive on Postgres, so two units differing only by case can genuinely coexist and the "ambiguous, records nothing" branch is reachable rather than defensive |
 
 **One of these is worth arguing about**, and it is (h). The brief only forbids *entering* Scheduled
 without a contractor, so what happens afterwards is a rule I added either way.

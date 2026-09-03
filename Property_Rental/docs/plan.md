@@ -4,11 +4,12 @@
 > column is a real prediction rather than a number reverse-engineered from the outcome. The Actual
 > column and the "what I cut" section are filled in as each session ends.
 >
-> **Where it stands:** Sessions 0 to 3 are done, so all ten requirements have working, tested code
-> behind them on the API side. Session 4 is well under way: the shell, the navigation with its alert
-> badge, the dashboard and the request screens are built, and the deployment is proved against a
-> container from an empty database. What is left is the rent and alert screens, the unit forms, and
-> pointing the deployment at a real host.
+> **Where it stands:** Sessions 0 to 4 are done. All ten requirements have working, tested code and
+> a screen behind them: the shell and navigation, the dashboard, the request list and detail, the
+> rent roll with its bulk paste, the alerts area, and the unit forms. The database moved from MySQL
+> to Postgres so that the whole thing fits one free host — see Session 4 below. What is left needs
+> accounts rather than code: creating the Render service from the blueprint, and recording the live
+> URL.
 
 ## How I split the work into sessions
 
@@ -22,20 +23,20 @@ hit the number.
 | 1 | Foundations — **done** | Scaffold both apps, MySQL in Docker, health check green. Then models + first migration, auth (bcrypt + JWT cookie), role guards, units CRUD + archive/restore, seed data | 1, 2 |
 | 2 | Requests — **done** | Requests CRUD, lifecycle + guard, manager-only assignment, immutable timeline, the filtered/sorted/paginated list | 3, 4, 5, 6, 9 |
 | 3 | Money and alerts — **done** | Rent payments, bulk endpoint + the four-way report, CSV rent roll, alerts + dismissal + the count the badge reads, the dashboard's four headline numbers, the by-status and by-contractor breakdowns, and the eight-week chart. All of it API-side and tested; the screens that display it are Session 4 | 7, 8, 10 |
-| 4 | Frontend — *part done* | The whole React frontend, deploy, seed production, finish docs. Built so far: the shell and navigation, the dashboard, the request list and detail, and the deployment proved against a container | — |
+| 4 | Frontend — **done** | The whole React frontend, deploy, seed production, finish docs. Landed: the shell and navigation with its alert badge, the dashboard, the request list and detail, the rent roll with bulk paste and CSV, the alerts area, the unit list, forms and detail — plus the deployment proved against a container from an empty database, and the move to Postgres | — |
 
-**Where this actually stands.** Sessions 0 to 3 are done, Session 4 is part done, and 9.25 hours are
-spent against a 13 hour plan.
+**Where this actually stands.** All five sessions are done and 10.75 hours are spent against a 13
+hour plan.
 
-The balance has shifted twice since I first wrote this paragraph. The risk stopped being that the
-rules would not get built — they are built and tested — and then it stopped being the deployment
-either. I brought that forward rather than leaving it last, which is the one change I made to this
-plan while following it, and it is explained under Session 4 below.
+The balance shifted three times since I first wrote this paragraph. The risk stopped being that the
+rules would not get built — they are built and tested — and then it stopped being the deployment,
+which I brought forward rather than leaving it last. The last shift was the one I had not planned
+for at all: the *database* moved, because the hosting choice made MySQL the expensive option.
 
-What is left is screens against endpoints that are already settled: the rent roll and bulk paste, the
-alerts area, and the unit forms. The cut list at the bottom still applies, and cutting from it now
-costs less than it would have earlier — every requirement is demonstrable through the generated
-`/docs` page, and now through a live URL, even if its screen never lands.
+**Nothing was cut.** The cut list at the bottom was decided in advance and never needed, which is
+the outcome I wanted from writing it early — every item on it stayed available right up to the end,
+and the reason none was taken is that the design session front-loaded the thinking rather than that
+the estimates were generous.
 
 Session 0 went entirely on design: settling the tables, drawing the ER diagram, and checking the
 design against all ten requirements one at a time.
@@ -96,8 +97,8 @@ point of writing it down early.
 | 1 — scaffold, auth, units, seed | 3.0 h | **1.25 h** | Came in well under the estimate. See below |
 | 2 — requests, lifecycle, history, list | 3.0 h | **1.0 h** | Same effect as Session 1 |
 | 3 — rent, alerts, dashboard | 3.0 h | **1.5 h** | Ran under, but see the note below |
-| 4 — frontend, deploy, docs | 3.0 h | **2.0 h so far** | The shell, the dashboard, the request screens, and the deploy proved against a container. The rent and alert screens are still to come |
-| **Total** | **13.0 h** | **9.25 h so far** | |
+| 4 — frontend, deploy, docs | 3.0 h | **3.5 h** | The only session to run over. Eight screens, the deploy proved against a container, and an unplanned database migration |
+| **Total** | **13.0 h** | **10.75 h** | |
 
 I would rather explain the Session 0 overrun than hide it. I estimated one hour and took three and a
 half.
@@ -119,12 +120,17 @@ it early because it felt like progress.
 estimating, it is the design session being paid back: the tables, the constraints, the transition table
 and the rent-history rule were already settled, so building them was transcription rather than
 thinking. The 3.5 hours of design and the 3.75 hours of building are really one number, and **7.25
-hours for all ten requirements** is the honest way to read it.
+hours for every rule in all ten requirements** is the honest way to read it.
+
+Session 4 then went the other way and overran, which is worth noticing rather than smoothing over:
+the design session had answered questions about *the data*, and Session 4's work was screens, a
+deployment and a database migration — none of which the schema had anything to say about. The
+payback was real but it was specific, and it ran out exactly where the design stopped.
 
 What that says about the original estimate is that I put the hours in the wrong column rather than
-getting the total wrong. Thirteen hours planned, and it looks like it will land close to it — but the
-shape is nothing like what I drew. I budgeted an hour for thinking and three for each build, and it
-came out the other way round.
+getting the total wrong. Thirteen hours planned and 10.75 spent — close on the total, and nothing
+like it in shape. I budgeted one hour for thinking and three for each build; it came out the other
+way round, and the only session that overran is the one the design session could not help with.
 
 The remaining estimates are guesses. Where I expect them to be wrong, written down before the fact so
 the comparison afterwards is honest:
@@ -172,11 +178,30 @@ it separately. That was not in the plan either. Two origins would have meant COR
 and a session cookie downgraded to `SameSite=None`, and one origin costs nothing — the dev proxy
 already worked that way.
 
+**And the change I had planned for without ever expecting to use it: the database moved to
+Postgres.** Choosing the host settled it — free Postgres is offered where free MySQL is not, so
+staying on MySQL meant a second provider holding the database and a connection string carried
+between two dashboards by hand. On Postgres it is one platform, one blueprint, and no secret typed
+anywhere.
+
+This is the one place where a Session 0 decision paid for itself in a way I can point at. Decision 5
+chose MySQL *and wrote down this exact escape route* before any code existed, on the stated grounds
+that free MySQL hosting is scarce. Cashing it in cost a driver swap, a `DATABASE_URL` change and
+about a dozen comment rewrites — and no SQL at all. The migration ran against an empty Postgres
+unchanged, 286 tests passed untouched, and all 51 requirement clauses passed against the new engine.
+
+It was not entirely free, and the gap is the interesting part: portable SQL says nothing about
+**collation** or about **concurrency**. Two behaviours changed without a line of SQL changing, and
+one of my two concurrency fixes turned out to be redundant on Postgres while the other was not — a
+thing I only learned by writing a probe that could fail and watching which one did. `decisions.md`
+Decision 5 and `ai-prompts.md` entry 9 have the full account.
+
 ## What I cut when I ran short
 
-**Nothing is cut yet.** This is the cut list, decided in advance and in the order things get dropped,
-so the decision is made calmly rather than under pressure at the end. The brief says "doing 8 goals
-well beats doing 10 goals badly," and this list is what taking that seriously looks like:
+**Nothing was cut in the end.** This is the cut list as written in advance, in the order things
+would have been dropped, so that the decision would be made calmly rather than under pressure at
+the end. The brief says "doing 8 goals well beats doing 10 goals badly," and this list is what
+taking that seriously looks like:
 
 1. **Dashboard chart → plain table.** The eight-week resolved-per-week figure is the requirement; the
    chart is the presentation. A table answers requirement 8; a half-finished chart answers nothing.
@@ -188,4 +213,7 @@ well beats doing 10 goals badly," and this list is what taking that seriously lo
 4. **Last resort: ship the API alone**, with a `curl` walkthrough covering every requirement, and
    record plainly in [`SUBMISSION.md`](../SUBMISSION.md) that the frontend did not land.
 
-*(Filled in at the end: what was actually cut, and why.)*
+*Filled in at the end: **nothing was cut.** Every one of the four items above stayed available and
+none was needed. The dashboard kept its chart, the bulk paste got its textarea, the styling got
+written, and the frontend shipped. I would rather record that the list went unused than quietly
+delete it — deciding the order in advance is what made the last session calm enough not to need it.*
