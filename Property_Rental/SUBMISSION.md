@@ -173,9 +173,15 @@ Mark each honestly. Partial is fine — say what is partial.
 
 ## How much time did you actually spend?
 
-5.75 hours so far: 3.5 on design against a 1 hour estimate, then 0.75, 0.5 and 1.0 on the three build
-sessions against 3 hours each. `docs/plan.md` has the breakdown, including why the design overran and
-why the build sessions keep coming in under — they are the same fact read twice, not two facts.
+9.25 hours so far against a 13 hour plan: 3.5 on design against a 1 hour estimate, then 1.25, 1.0 and
+1.5 on the three API sessions against 3 hours each, and 2.0 so far on the browser app and the
+deployment.
+
+The interesting number is not the total but its shape. I budgeted one hour for thinking and three for
+each build session, and it came out the other way round: the design overran by 3.5x, and every build
+session then landed at half its estimate or less because the questions had already been answered on
+paper. Those are the same fact read twice, not two facts. `docs/plan.md` has the full breakdown,
+including the two places the plan bent under contact with reality.
 
 ## What would you do next, with another 12 hours?
 

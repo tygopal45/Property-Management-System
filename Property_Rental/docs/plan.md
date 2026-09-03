@@ -5,9 +5,10 @@
 > column and the "what I cut" section are filled in as each session ends.
 >
 > **Where it stands:** Sessions 0 to 3 are done, so all ten requirements have working, tested code
-> behind them on the API side. Session 4 is part-started — the sign-in page and the units table were
-> built early, out of order; the rest of the browser app and the deploy are outstanding, and that
-> includes the two screens requirements 8 and 10 describe.
+> behind them on the API side. Session 4 is well under way: the shell, the navigation with its alert
+> badge, the dashboard and the request screens are built, and the deployment is proved against a
+> container from an empty database. What is left is the rent and alert screens, the unit forms, and
+> pointing the deployment at a real host.
 
 ## How I split the work into sessions
 
@@ -21,17 +22,20 @@ hit the number.
 | 1 | Foundations — **done** | Scaffold both apps, MySQL in Docker, health check green. Then models + first migration, auth (bcrypt + JWT cookie), role guards, units CRUD + archive/restore, seed data | 1, 2 |
 | 2 | Requests — **done** | Requests CRUD, lifecycle + guard, manager-only assignment, immutable timeline, the filtered/sorted/paginated list | 3, 4, 5, 6, 9 |
 | 3 | Money and alerts — **done** | Rent payments, bulk endpoint + the four-way report, CSV rent roll, alerts + dismissal + the count the badge reads, the dashboard's four headline numbers, the by-status and by-contractor breakdowns, and the eight-week chart. All of it API-side and tested; the screens that display it are Session 4 | 7, 8, 10 |
-| 4 | Frontend — *part started* | The whole React frontend, deploy, seed production, finish docs. Sign-in and the units table already exist | — |
+| 4 | Frontend — *part done* | The whole React frontend, deploy, seed production, finish docs. Built so far: the shell and navigation, the dashboard, the request list and detail, and the deployment proved against a container | — |
 
-**Where this actually stands.** Sessions 0 to 3 are done and 5.75 hours are spent. That leaves
-Session 4 — the browser app and the deploy — against a 3 hour estimate.
+**Where this actually stands.** Sessions 0 to 3 are done, Session 4 is part done, and 9.25 hours are
+spent against a 13 hour plan.
 
-The balance has shifted since I wrote the paragraph this replaces. The risk is no longer that the
-rules do not get built; they are built and tested. It is that the whole of the visible product, plus
-a deployment on an unfamiliar free tier, sits in one session. The cut list at the bottom of this
-document is for exactly that, and it is worth noting that cutting from it now costs less than it
-would have a session ago: every requirement is demonstrable through the generated `/docs` page even
-if its screen never lands.
+The balance has shifted twice since I first wrote this paragraph. The risk stopped being that the
+rules would not get built — they are built and tested — and then it stopped being the deployment
+either. I brought that forward rather than leaving it last, which is the one change I made to this
+plan while following it, and it is explained under Session 4 below.
+
+What is left is screens against endpoints that are already settled: the rent roll and bulk paste, the
+alerts area, and the unit forms. The cut list at the bottom still applies, and cutting from it now
+costs less than it would have earlier — every requirement is demonstrable through the generated
+`/docs` page, and now through a live URL, even if its screen never lands.
 
 Session 0 went entirely on design: settling the tables, drawing the ER diagram, and checking the
 design against all ten requirements one at a time.
@@ -89,11 +93,11 @@ point of writing it down early.
 | Session | Estimated | Actual | Notes |
 |---|---|---|---|
 | 0 — design, schema, ER diagram | 1.0 h | 3.5 h | Went 3.5x over. See below |
-| 1 — scaffold, auth, units, seed | 3.0 h | **0.75 h** | Came in at a quarter of the estimate. See below |
-| 2 — requests, lifecycle, history, list | 3.0 h | **0.5 h** | Same effect as Session 1 |
-| 3 — rent, alerts, dashboard | 3.0 h | **1.0 h** | Ran under, but see the note below |
-| 4 — frontend, deploy, docs | 3.0 h | part started | Sign-in and units table were built with Session 1's scaffold |
-| **Total** | **13.0 h** | **5.75 h so far** | |
+| 1 — scaffold, auth, units, seed | 3.0 h | **1.25 h** | Came in well under the estimate. See below |
+| 2 — requests, lifecycle, history, list | 3.0 h | **1.0 h** | Same effect as Session 1 |
+| 3 — rent, alerts, dashboard | 3.0 h | **1.5 h** | Ran under, but see the note below |
+| 4 — frontend, deploy, docs | 3.0 h | **2.0 h so far** | The shell, the dashboard, the request screens, and the deploy proved against a container. The rent and alert screens are still to come |
+| **Total** | **13.0 h** | **9.25 h so far** | |
 
 I would rather explain the Session 0 overrun than hide it. I estimated one hour and took three and a
 half.
@@ -111,15 +115,16 @@ roughly an hour and a half on one picture, and it taught me nothing.
 What I would do differently: draw the diagram once, last, after the tables have stopped moving. I drew
 it early because it felt like progress.
 
-**Sessions 1 and 2 then came in at 0.75 and 0.5 hours against 3 apiece.** That is not better
+**Sessions 1, 2 and 3 then came in at 1.25, 1.0 and 1.5 hours against 3 apiece.** That is not better
 estimating, it is the design session being paid back: the tables, the constraints, the transition table
 and the rent-history rule were already settled, so building them was transcription rather than
-thinking. The 3.5 hours of design and the 1.25 hours of building are really one number, and 4.75 hours
-for seven requirements is the honest way to read it.
+thinking. The 3.5 hours of design and the 3.75 hours of building are really one number, and **7.25
+hours for all ten requirements** is the honest way to read it.
 
 What that says about the original estimate is that I put the hours in the wrong column rather than
-getting the total wrong. Thirteen hours planned, and it looks like it will land well under — but only
-because the thinking happened first, and it happened in the session I had budgeted an hour for.
+getting the total wrong. Thirteen hours planned, and it looks like it will land close to it — but the
+shape is nothing like what I drew. I budgeted an hour for thinking and three for each build, and it
+came out the other way round.
 
 The remaining estimates are guesses. Where I expect them to be wrong, written down before the fact so
 the comparison afterwards is honest:
@@ -132,7 +137,7 @@ the comparison afterwards is honest:
   is the classic way to lose two hours to something that is not programming.
 
 **What actually happened in Session 3, since the prediction above was half right.** It came in at an
-hour rather than over three, but the reason it did is the reason I expected it to run long: the
+hour and a half rather than over three, but the reason it did is the reason I expected it to run long: the
 wording *did* have to become exact behaviour, and doing that was most of the work. Three places
 where the brief only implies an answer had to be settled before the code could be written — whether a
 bulk row is judged against its own amount or the month's total, what a row naming an archived unit
@@ -145,7 +150,27 @@ just have arrived a day late, for ever. I found it writing the test rather than 
 which is becoming a pattern worth naming: **the reviews that ran something found real problems, and
 the reviews that only read code did not.**
 
-The other half of the hour went on tests: 116 new ones, taking the suite from 165 to 281.
+The rest of the session went on tests: 116 new ones, taking the suite from 165 to 281.
+
+**Session 4, and the one change I made to this plan while following it.** I had deployment scheduled
+last, and I moved it to the front of the session.
+
+That ordering was a mistake in the original plan, and I would rather name it than quietly fix it. I
+had already written two paragraphs above calling deployment the riskiest thing in the whole build —
+"the classic way to lose two hours to something that is not programming" — and then scheduled it for
+the very end, where a failure has no time left to absorb it. Both statements were in this document at
+once and I did not notice until I got there.
+
+So the order became: build the shell, then deploy, then keep building. It cost about an hour and it
+bought certainty. I ran the image against an **empty** database rather than my working one, so
+Alembic had to migrate from nothing and the seed had to run for the first time, and then I pointed
+the requirement audit at the container and watched all 51 clauses pass against it. What is left needs
+accounts rather than code.
+
+The other decision worth recording: I served the browser app from the API process rather than hosting
+it separately. That was not in the plan either. Two origins would have meant CORS with credentials
+and a session cookie downgraded to `SameSite=None`, and one origin costs nothing — the dev proxy
+already worked that way.
 
 ## What I cut when I ran short
 
