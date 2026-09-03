@@ -280,8 +280,26 @@ def reset() -> None:
     print("Tables dropped and recreated.")
 
 
+def is_empty() -> bool:
+    """True when there are no users, which is the only state it is safe to seed into."""
+    db = SessionLocal()
+    try:
+        return db.scalar(select(User).limit(1)) is None
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     print(f"Seeding {engine.url.render_as_string(hide_password=True)}")
+
     if "--reset" in sys.argv:
         reset()
+
+    # `--if-empty` is what the container runs on every start. Seeding blindly there would either
+    # duplicate the demo data on the second deploy or fail on the unique constraints and take the
+    # service down with it, so the deploy asks first and says so when it declines.
+    if "--if-empty" in sys.argv and not is_empty():
+        print("Already seeded — leaving the data alone.")
+        sys.exit(0)
+
     seed()
