@@ -352,6 +352,37 @@ is that reading a design does not test it. Pick a scenario and follow it through
 and the rent roll both join to `unit_rents`. Eight tables instead of seven. Worth it to make corrupting
 history impossible rather than merely unlikely.
 
+## Decision 11 — The browser app is published on Vercel, but reaches the API through a rewrite
+
+**Chose.** The React app is deployed to Vercel *and* still served by the API process on Render. On
+Vercel, `web/vercel.json` rewrites `/api/*` to the Render service, so the browser only ever talks to
+the Vercel origin.
+
+**Rejected.** The obvious split — Vercel serves the app, the app calls
+`https://<service>.onrender.com/api/...` directly.
+
+**Why.** The direct call is one line shorter and would have broken the submission for a share of
+reviewers. Crossing origins forces the session cookie from `SameSite=Lax` to `SameSite=None`, which
+makes it a **third-party cookie**. Safari blocks those by default, Brave blocks them, and Firefox
+partitions them. The failure is not a warning in a console; it is a login form that accepts a correct
+password and returns to the login form, on a browser a Mac-using reviewer is likely to have open. The
+rewrite avoids the trade entirely rather than managing it: same-origin from the browser's point of
+view, cookie stays `SameSite=Lax`, and no CORS preflight in the picture.
+
+**What it cost, and I would rather state it than have it found.** The rewrite adds a proxy hop, and
+Render's free instance sleeps. If a cold start outruns Vercel's proxy timeout, the first request
+through Vercel returns a gateway error rather than a slow page. That is why the API still builds and
+serves the browser app: **the Render URL is a complete working application on its own** and is the
+fallback. Keeping it costs an npm build inside the Docker image and nothing at runtime.
+
+**What it did not cost.** No application code decides this. Every call already went through one
+helper, so the whole change is a `BASE` constant in `web/src/api/client.js` that is empty in every
+environment we ship — the relative path is correct behind the Vite dev proxy, on Render, and behind
+the Vercel rewrite alike. `VITE_API_BASE_URL` exists to point the app at a genuinely different
+origin, and `web/.env.example` says plainly why it should be left unset.
+
+---
+
 ## Smaller readings of the brief
 
 The ten decisions above are the ones with architecture behind them. These are the places where the

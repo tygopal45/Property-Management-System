@@ -104,11 +104,13 @@ api/                    the FastAPI service
                         with real timelines spread over eight weeks
 web/                    the React app
   src/
-  · api/client.js       fetch wrapper, 401 handling
-  · pages/              Login, Units       |  Dashboard, UnitDetail, Requests,
-                                              RequestDetail, RentRoll, Alerts, MyWork
-                                              — the six after the bar are not built
-    components/
+    · api/client.js     fetch wrapper, 401 handling, the one place a base URL is decided
+    · pages/            Login, Units, UnitDetail, Dashboard, Requests,
+                        RequestDetail, RentRoll, Alerts, MyWork — all nine built
+    · components/       Layout — the shell, the navigation and the alert badge
+  · checks/render.jsx   renders every page in both roles without a browser
+  · vercel.json         static build, and the /api/* rewrite to the Render service
+  · .env.example        one optional variable, and why to leave it unset
 · docs/                 the five required documents
 · images/               er-diagram.png
 · docker-compose.yml    PostgreSQL 17 for local development
@@ -123,9 +125,20 @@ development.
 
 **Hosting: one Render service and one Render Postgres**, declared together in `render.yaml` at the
 repository root, so deploying is *New → Blueprint* with no connection string to copy. The API
-process serves the built browser app, so there is one origin, one URL and one cold start — and the
-session cookie stays `SameSite=Lax` rather than being downgraded to `SameSite=None` to cross a
-domain boundary.
+process serves the built browser app, so the Render URL alone is a complete, working application.
+
+**The browser app is also published on Vercel**, and the way it reaches the API is the part worth
+reading. It does *not* call the Render host directly. `web/vercel.json` rewrites `/api/*` through to
+the Render service, so as far as the browser is concerned the API is part of the Vercel origin. That
+is not a detail of taste: calling Render directly would make the session cookie a **third-party**
+cookie, which Safari and Brave block outright and Firefox partitions — anyone on those browsers
+could not log in at all. Routing through the rewrite keeps the cookie first-party and `SameSite=Lax`,
+and means no CORS is involved in either deployment.
+
+The cost is one hop and one failure mode, both stated rather than discovered: the rewrite adds a
+proxy step, and if Render's free instance is asleep the first request may exceed Vercel's proxy
+timeout and return a gateway error. The Render URL keeps working directly in that case, which is why
+the API still serves the browser app rather than being stripped down to JSON.
 
 That hosting choice is what moved the database. The constraint set in advance — no engine-specific
 SQL anywhere — was written for exactly this: free MySQL hosting is scarce, free Postgres is not, and

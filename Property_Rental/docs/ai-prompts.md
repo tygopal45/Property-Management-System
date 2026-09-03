@@ -407,3 +407,51 @@ outside the path I had been exercising all day. Verifying the thing you just bui
 than verifying it the way someone else would receive it.
 
 ---
+
+---
+
+## 10. Splitting the deploy across Vercel and Render — **the cheap option would have broken login**
+
+**Prompt.** "clear diff backend frontend files with separate env files so that i can deploy backend
+on render frontend on vercel."
+
+**What I pushed back on first, and it was half of the answer.** The premise was that frontend and
+backend were tangled. They were not: `api/` and `web/` are separate trees with separate toolchains,
+and there was one `.env` because the **backend is the only half that has configuration**. The browser
+app had no env file because it called `/api` on a relative path — nothing to configure means no file
+to write. Inventing one to look symmetrical would have been decoration.
+
+**The part that mattered was the part I was not asked about.** The obvious split — Vercel serves the
+app, the app calls `https://<service>.onrender.com` — forces the session cookie to `SameSite=None`,
+which makes it a third-party cookie. Safari blocks those by default, Brave blocks them, Firefox
+partitions them. So the "simple" version ships a submission where a reviewer on a Mac types the right
+password and lands back on the login screen, with nothing in the logs to explain it.
+
+The fix is not a workaround: a rewrite in `web/vercel.json` forwards `/api/*` to Render, so the
+browser sees one origin, the cookie stays `SameSite=Lax`, and no CORS is involved. Requirements did
+not change; the failure mode disappeared.
+
+**What I verified rather than assumed.**
+
+- Built the image from `git archive origin/main` — the *committed* tree, not my working directory —
+  and booted it against an empty Postgres. Alembic migrated from nothing, the seed ran, and all **51
+  requirement clauses passed against the container**.
+- Fed it Render's exact `postgres://` URL shape, which SQLAlchemy would route to psycopg 2. The
+  scheme validator rewrote it and the seed logged `postgresql+psycopg://`. That was the single most
+  likely deploy-time crash, and it is now closed by evidence rather than by reading.
+- Checked that `secure=` on the cookie comes from configuration, not from the request scheme. Render
+  terminates TLS at its edge and forwards plain HTTP, so a scheme-derived flag would have silently
+  shipped an insecure cookie in production.
+- Built the bundle **both** ways — with and without `VITE_API_BASE_URL` — and read the compiled
+  output, because an escape hatch nobody has executed is a guess. With it unset no host is baked in;
+  with it set the trailing slash is stripped, so no `//api` 404.
+
+**One small thing the change broke, caught by running it.** `import.meta` does not exist in the CJS
+bundle `npm run check` builds, so esbuild emitted a warning and silently substituted an empty object.
+The checks still passed — the substituted value happens to be the right one — which is exactly the
+kind of pass worth distrusting. Fixed by defining it explicitly in the check script rather than
+leaving the bundler to guess.
+
+**The lesson.** The request was a packaging question. Answering only the packaging question would
+have produced a working build and a broken login. The useful move was to take the goal seriously and
+the proposed shape of it lightly.

@@ -176,13 +176,15 @@ accounts rather than code.
 The other decision worth recording: I served the browser app from the API process rather than hosting
 it separately. That was not in the plan either. Two origins would have meant CORS with credentials
 and a session cookie downgraded to `SameSite=None`, and one origin costs nothing — the dev proxy
-already worked that way.
+already worked that way. That reasoning outlived the single-platform plan: when the browser app moved
+to Vercel it kept the same origin by rewriting `/api/*` to Render, rather than giving the cookie up.
 
 **And the change I had planned for without ever expecting to use it: the database moved to
 Postgres.** Choosing the host settled it — free Postgres is offered where free MySQL is not, so
 staying on MySQL meant a second provider holding the database and a connection string carried
-between two dashboards by hand. On Postgres it is one platform, one blueprint, and no secret typed
-anywhere.
+between two dashboards by hand. On Postgres the API and its database are one blueprint on one
+platform, with no secret typed anywhere. (The browser app is published separately on Vercel — that
+is Decision 11, and it deliberately does not introduce a second origin.)
 
 This is the one place where a Session 0 decision paid for itself in a way I can point at. Decision 5
 chose MySQL *and wrote down this exact escape route* before any code existed, on the stated grounds
