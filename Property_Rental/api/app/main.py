@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.db import engine
-from app.routers import alerts, auth, rent, requests, units
+from app.routers import alerts, auth, dashboard, rent, requests, units
 
 app = FastAPI(
     title="Property Rental & Maintenance",
@@ -29,6 +29,7 @@ app.include_router(units.router)
 app.include_router(requests.router)
 app.include_router(rent.router)
 app.include_router(alerts.router)
+app.include_router(dashboard.router)
 
 
 @app.middleware("http")
