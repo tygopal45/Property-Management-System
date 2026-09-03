@@ -3,10 +3,10 @@
 > **Status:** written while designing, before the code existed. These are the calls I made and the
 > reasons for them.
 >
-> **Decisions 3, 4, 5, 6, 8, 9 and 10 now have working code behind them.** Decision 10 has the test I
-> would run first, and Decision 6's rank is finally in a real `ORDER BY`. Decisions 1, 2 and 7 describe
-> behaviour in the rent and alert code, which is the next session — until then they are commitments the
-> implementation has to keep, not descriptions of code that runs.
+> **All ten now have working code behind them.** Decision 10 has the test I would run first, Decision
+> 6's rank is in a real `ORDER BY`, and Decisions 1, 2 and 7 — which were commitments the rent code
+> still had to keep — are now `services/rent.py` and `services/alerts.py` with tests written from the
+> requirement sentences. Decision 9 is the one still partly open: the frontend is a session away.
 
 Ten decisions, each as what I chose, what I rejected, and why.
 
@@ -316,6 +316,15 @@ answer is a decision rather than a shrug.
 | l | Who may leave a note | Both roles — a contractor only on a request assigned to them | Notes are how a contractor reports progress, which is the point of requirement 9 listing them. The scoping is rule (a) again |
 | m | Whether an email is case-sensitive | Lowercased on the way in, on both write and login | Nothing in the brief says. Left alone it is not a choice at all but an accident of the engine: MySQL's default collation compares case-insensitively, SQLite's does not, so the same login succeeds on one and fails on the other. Decision 5 promises portable behaviour, and this is exactly the sort of thing that quietly breaks it |
 | n | Whether text fields are trimmed | Yes, and empty-after-trimming is refused | `min_length=1` accepts `"   "`, which then sits in the list as a request with no description. Trimming also stops `" 4B"` and `"4B"` being two different units, which would make the uniqueness rule stop helping |
+| o | When "a short grace period" of five days makes a month overdue | The **6th**. The 1st to the 5th are grace | Five days of grace has to mean five days. Written the other way it would be the 7th, which is six days of grace for a setting that says five — and it would never have looked wrong |
+| p | Whether a bulk row is judged against its own amount or the month's running total | Its own amount | Requirement 7 says each row is classified by whether "the amount received equals that unit's monthly rent", which is a statement about the row. So a unit paying 600 twice against a rent of 1200 gets two *underpaid* rows and a *matched* month, and both are true — `schema.md` §5.1 |
+| q | What a batch row naming an **archived** unit does | Reported as `unmatched`; no payment recorded | An archived unit expects no rent at all (§4b), so recording money against it would create a payment for a month that owes nothing. The row is far more likely to be a stale paste than a real payment, and the message says so rather than leaving a manager to work out why. See the note below |
+| r | Whether "total rent collected this month" means the month the money covers or the month it was entered | The month it **covers** | It sits beside "units with rent overdue this month", which is unambiguously about the month being billed. Two headline numbers reading the word "month" two different ways would be worse than either choice on its own |
+| s | Whether the dashboard is manager-only | Yes | Two of its four headline numbers are rent, and requirement 1 says a contractor cannot see rent data. A contractor's landing view is a different screen with different numbers, and it is the request list they already have |
+| t | Whether contractors with nothing assigned appear in the by-contractor breakdown | Yes, at zero | A manager reading that breakdown is usually asking who can take the next job, and the people to give it to are exactly the rows that would be missing if the zeroes were dropped |
+| u | How far back the alerts list looks | Twelve months | Without a bound the badge counts upward for ever once a unit falls behind. A debt older than a year is a collections problem, not something a navigation badge should keep counting. Arrears before the window are still in the rent roll, which takes any month |
+| v | Whether the alerts list is one row per unit or one per (unit, month) | Per **pair** | Requirement 10 is written about one unit, but the recurrence clause only works because the month is in the key (§5.2). A unit three months behind therefore shows three alerts and a badge of three, which is also more use than one row that hides how far behind it is |
+| w | Whether a unit identifier in a pasted batch is case-sensitive | An exact match wins; otherwise case and surrounding spaces are ignored | The same trap as (m). MySQL's default collation matches `4b` to `4B` and SQLite's does not, so left to the engine this is an accident rather than a decision. Deciding it in Python means it behaves the same everywhere, and a pasted spreadsheet cell is not typed carefully |
 
 **One of these is worth arguing about**, and it is (h). The brief only forbids *entering* Scheduled
 without a contractor, so what happens afterwards is a rule I added either way.
@@ -345,3 +354,18 @@ scheduling should be a manager's call — because it usually implies committing 
 date — I would agree it is the more likely real-world rule, and it is a two-line change in
 `services/lifecycle.py`. I have not made it because the brief does not ask for it, and guessing at
 unstated rules is how a submission ends up defending decisions nobody asked it to make.
+
+**A third one worth arguing about, and it is (q).** Requirement 7 defines `unmatched` as "the
+identifier given does not correspond to any unit", and an archived unit *is* a unit — so reporting it
+as unmatched is a stretch of the brief's own wording, and I would rather say that outright than let a
+reviewer find it.
+
+The alternatives were both worse. Recording the payment means comparing it against a rent of zero,
+which classifies every such row as *overpaid* and quietly books money against a flat that has left the
+portfolio. Adding a fifth outcome fits the truth better but breaks the four the requirement names, and
+requirement 7 is specific about there being four.
+
+So the outcome stays inside the brief's vocabulary and the row carries a sentence saying what actually
+happened: *"Unit 4B is archived, so no rent is expected for it. Nothing was recorded — restore the unit
+first if this payment is real."* If a reviewer preferred the fifth outcome I would not argue hard; what
+I would defend is refusing to record the payment silently.

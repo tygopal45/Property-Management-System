@@ -1,8 +1,8 @@
 # AI prompts
 
 I used Claude Code throughout, as a pair rather than a code generator: I set the direction and made
-the calls, and I pushed back when the output was wrong. **Two of the seven entries below are AI
-answers I rejected**, and in each case the pushback is why the design is what it is. The last three
+the calls, and I pushed back when the output was wrong. **Two of the eight entries below are AI
+answers I rejected**, and in each case the pushback is why the design is what it is. The last four
 are the opposite case — AI finding bugs that AI had written, and that I had read past. Entry 7 also
 records two occasions where the AI was confidently wrong and running the code was what settled it.
 
@@ -269,3 +269,58 @@ reviews at once.
 made to run something. The two claims that turned out to be wrong were both produced by reading code
 and reasoning about it. Parallelism helped by covering more ground, not by being more reliable — three
 reviews agreeing on the fresh-clone claim did not make it true.
+
+---
+
+## 8. Building the rent tools from the plan — **found an off-by-one in my own specification**
+
+**Prompt**
+
+> let's build other things now, first propose the plan
+
+then, once I had read it:
+
+> go ahead do 3 please
+
+**Why I split it in two.** The first prompt is the one that mattered. Asking for a plan before any
+code meant I could see that requirements 7, 8 and 10 all sit on top of one thing that did not exist —
+a function answering "where does this unit stand for this month" — and that building it first would
+make the other three small. It also surfaced the two questions I had to answer myself rather than
+discover halfway through: what a bulk row is actually compared against, and what a row naming an
+archived unit should do. Both are now `decisions.md` (p) and (q).
+
+That is the pattern from entry 3 applied to building rather than to design: the expensive mistakes are
+the ones made before any code exists, so the cheapest place to catch them is a plan I have to read.
+
+**What it found, and this one was mine.** `schema.md` §5.1 had specified the grace period as:
+
+```
+overdue : (unpaid OR partial) AND today > (M + GRACE_PERIOD_DAYS)
+```
+
+Writing the test straight from the requirement sentence — "a short grace period before an unpaid month
+counts as overdue", five days — I had to decide which day the alert actually appears on. With `>` and
+a grace of five, the answer is the **7th**: the 1st to the 6th are grace, which is six days of grace
+for a setting that says five. It should be `>=`, and the 6th.
+
+Nothing would have errored. Every alert in the system would simply have arrived a day late, for ever,
+and the number in the config would have quietly meant something other than what it says. I changed the
+code, changed §5.1, and pinned all three days in `test_grace_period_boundary` so the boundary is a
+decision rather than an accident.
+
+**Two corrections I made to the AI's tests**, both the same kind as entry 6's:
+
+- A test asserted that dismissing every alert on 1 March, then checking 30 April, would leave exactly
+  one alert. It leaves two — March was not yet overdue on the 1st, so it was never in the list to be
+  dismissed. The code was right and my expectation was wrong, which is the failure mode I now watch
+  for hardest.
+- A test claimed to prove that two unit numbers differing only in case are reported as ambiguous, and
+  actually passed a third string that matched nothing at all. It would have gone green for ever while
+  testing nothing. Rewritten to pass `" 4B"`, which has no exact match and folds onto both.
+
+**The lesson, and it is the same one entry 7 ended on.** Reading the specification did not find the
+off-by-one; I had read §5.1 several times. Writing a test that had to name a specific day did. The
+thing that keeps finding real problems in this project is being forced to produce a concrete answer,
+not being asked to check.
+
+---

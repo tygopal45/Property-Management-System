@@ -1,9 +1,11 @@
 # Submission
 
-> **Status: seven of the ten goals are built; the rent tools, the dashboard and the frontend are not.** Filled in as the
-> work lands. Everything marked TODO below is still outstanding, and the goal checklist says Done only
-> where there is working, tested code behind it. I would rather hand you a checklist that admits what
-> is missing than one that reads as finished.
+> **Status: all ten goals have working, tested code behind them on the API side. The browser app is
+> two screens out of eight, and nothing is deployed yet.** Filled in as the work lands. Everything
+> marked TODO below is still outstanding, and the goal checklist says Done only where there is
+> working, tested code behind it — which is why three goals below say *API done, screen pending*
+> rather than Done. I would rather hand you a checklist that admits what is missing than one that
+> reads as finished.
 
 ## Links
 
@@ -12,11 +14,21 @@
 
 ## Notes for the reviewer
 
-The design is finished and written up, and seven of the ten requirements are built against it:
-accounts and roles, units, maintenance requests, the lifecycle, assignment, finding requests, and the
-timeline that cannot be rewritten. **165 tests pass in under four seconds.** Requirements 7, 8 and 10 —
-bulk rent, the dashboard and rent alerts — are designed in detail and not yet written, and the browser
-app is a sign-in page and a units table.
+The design is finished and written up, and every one of the ten requirements now has code behind it.
+**281 tests pass in about four seconds.** The API is complete: accounts and roles, units and rent
+history, maintenance requests, the lifecycle, assignment, the searchable list, bulk rent with its
+four-way report, the CSV rent roll, the dashboard, the alerts that come back next month, and the
+timeline that cannot be rewritten.
+
+**What is not done is the browser app**, which is a sign-in page and a units table. So requirements 8
+and 10 — a dashboard and an alerts area with a count badge in the navigation — are answered by
+endpoints rather than by the screens they describe, and I have marked them that way in the checklist
+rather than calling them Done. Every one of them is demonstrable through the generated `/docs` page in
+the meantime.
+
+**If you have time for one thing,** the rent rule in `api/app/services/rent.py` is the piece I would
+put in front of you. Requirements 7, 8 and 10 all read it, it is the design decision in `schema.md`
+§5.1 written out, and `tests/test_rent_state.py` is what holds it honest.
 
 If you are reading this while it is still in progress, the five documents under [`docs/`](docs/) are
 the substance of what exists so far:
@@ -110,16 +122,16 @@ Mark each honestly. Partial is fine — say what is partial.
 | 4 | Lifecycle with rules | **Done** | One transition table in `services/lifecycle.py`. All 16 status pairs are tested; the 12 illegal ones return 409 naming both states and the reason. Reopen lands on Triaged and clears `resolved_at` |
 | 5 | Assignment | **Done** | Composite primary key, so a double assignment is impossible. Manager-only. Removing the last contractor from a Scheduled request drops it to Triaged rather than leaving the guard walkable around — `decisions.md` (h) |
 | 6 | Finding requests | **Done** | Server-side search, all four filters indexed, three sorts, `total` from its own `COUNT`. Priority sorts by an explicit rank, so it is urgent-first rather than alphabetical |
-| 7 | Bulk rent + CSV | Not done | Designed. Four outcomes: matched / underpaid / overpaid / unmatched |
-| 8 | Dashboard | Not done | Designed. Eight-week chart reads `request_events`, not `resolved_at` — `schema.md` §8 says why |
+| 7 | Bulk rent + CSV | **Done** | One transaction, four outcomes, and a sentence on every row saying why. A row is judged against its own amount, not the month's running total — the brief's wording, and `decisions.md` (p) explains why that can differ from the rent roll. The CSV escapes cells that a spreadsheet would otherwise run as a formula |
+| 8 | Dashboard | API done, screen pending | Four headline numbers, both breakdowns, eight weeks. The chart reads `request_events`, not `resolved_at`, so reopening a request cannot shrink a bar that was already reported — `schema.md` §8, and the test named after it |
 | 9 | History you cannot rewrite | **Done** | Append-only. Every change writes its event in the same transaction, so a refused move leaves no history. Enforced by no update or delete route existing — a test asserts on the route table itself |
-| 10 | Rent alerts | Not done | Designed. Dismissals keyed to `(unit, month)`, which is what makes the alert come back |
+| 10 | Rent alerts | API done, badge pending | Dismissals keyed to `(unit, month)`, which is what makes the alert come back — dismiss August and September still lists, with no scheduled job anywhere. The badge count ships with the list so the two cannot disagree; the navigation that shows it is Session 4 |
 
 ## How much time did you actually spend?
 
-4.75 hours so far: 3.5 on design against a 1 hour estimate, 0.75 on Session 1 against 3, and 0.5 on
-Session 2 against 3. `docs/plan.md` has the breakdown, including why the design overran and why the
-build sessions keep coming in under.
+5.75 hours so far: 3.5 on design against a 1 hour estimate, then 0.75, 0.5 and 1.0 on the three build
+sessions against 3 hours each. `docs/plan.md` has the breakdown, including why the design overran and
+why the build sessions keep coming in under — they are the same fact read twice, not two facts.
 
 ## What would you do next, with another 12 hours?
 

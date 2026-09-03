@@ -4,9 +4,10 @@
 > column is a real prediction rather than a number reverse-engineered from the outcome. The Actual
 > column and the "what I cut" section are filled in as each session ends.
 >
-> **Where it stands:** Sessions 0, 1 and 2 are done. Session 3 is not started. Session 4 is
-> part-started — the sign-in page and the units table were built early, out of order; the rest of
-> the browser app and the deploy are outstanding.
+> **Where it stands:** Sessions 0 to 3 are done, so all ten requirements have working, tested code
+> behind them on the API side. Session 4 is part-started — the sign-in page and the units table were
+> built early, out of order; the rest of the browser app and the deploy are outstanding, and that
+> includes the two screens requirements 8 and 10 describe.
 
 ## How I split the work into sessions
 
@@ -19,16 +20,18 @@ hit the number.
 | 0 | Design — **done** | Design only: the tables, the ER diagram, and a check of the design against all ten requirements one at a time | — |
 | 1 | Foundations — **done** | Scaffold both apps, MySQL in Docker, health check green. Then models + first migration, auth (bcrypt + JWT cookie), role guards, units CRUD + archive/restore, seed data | 1, 2 |
 | 2 | Requests — **done** | Requests CRUD, lifecycle + guard, manager-only assignment, immutable timeline, the filtered/sorted/paginated list | 3, 4, 5, 6, 9 |
-| 3 | Money and alerts | Rent payments, bulk endpoint + the four-way report, CSV rent roll, alerts + dismissal + nav badge, the dashboard's four headline numbers, the by-status and by-contractor breakdowns, and the eight-week chart | 7, 8, 10 |
+| 3 | Money and alerts — **done** | Rent payments, bulk endpoint + the four-way report, CSV rent roll, alerts + dismissal + the count the badge reads, the dashboard's four headline numbers, the by-status and by-contractor breakdowns, and the eight-week chart. All of it API-side and tested; the screens that display it are Session 4 | 7, 8, 10 |
 | 4 | Frontend — *part started* | The whole React frontend, deploy, seed production, finish docs. Sign-in and the units table already exist | — |
 
-**Where this actually stands.** Sessions 0, 1 and 2 are done and 4.75 hours are spent. That leaves
-Sessions 3 and 4 — the rent tools and dashboard, and the whole frontend — and 6 hours of planned work
-still ahead of me.
+**Where this actually stands.** Sessions 0 to 3 are done and 5.75 hours are spent. That leaves
+Session 4 — the browser app and the deploy — against a 3 hour estimate.
 
-That is tight against the time I have, and I would rather write it down than discover it later. It is
-also exactly what the cut list at the bottom of this document is for: I decided it in advance, in
-order, so that when the time runs out the decision has already been made.
+The balance has shifted since I wrote the paragraph this replaces. The risk is no longer that the
+rules do not get built; they are built and tested. It is that the whole of the visible product, plus
+a deployment on an unfamiliar free tier, sits in one session. The cut list at the bottom of this
+document is for exactly that, and it is worth noting that cutting from it now costs less than it
+would have a session ago: every requirement is demonstrable through the generated `/docs` page even
+if its screen never lands.
 
 Session 0 went entirely on design: settling the tables, drawing the ER diagram, and checking the
 design against all ten requirements one at a time.
@@ -88,9 +91,9 @@ point of writing it down early.
 | 0 — design, schema, ER diagram | 1.0 h | 3.5 h | Went 3.5x over. See below |
 | 1 — scaffold, auth, units, seed | 3.0 h | **0.75 h** | Came in at a quarter of the estimate. See below |
 | 2 — requests, lifecycle, history, list | 3.0 h | **0.5 h** | Same effect as Session 1 |
-| 3 — rent, alerts, dashboard | 3.0 h | not started | |
+| 3 — rent, alerts, dashboard | 3.0 h | **1.0 h** | Ran under, but see the note below |
 | 4 — frontend, deploy, docs | 3.0 h | part started | Sign-in and units table were built with Session 1's scaffold |
-| **Total** | **13.0 h** | **4.75 h so far** | |
+| **Total** | **13.0 h** | **5.75 h so far** | |
 
 I would rather explain the Session 0 overrun than hide it. I estimated one hour and took three and a
 half.
@@ -118,8 +121,8 @@ What that says about the original estimate is that I put the hours in the wrong 
 getting the total wrong. Thirteen hours planned, and it looks like it will land well under — but only
 because the thinking happened first, and it happened in the session I had budgeted an hour for.
 
-The remaining estimates are guesses. Where I expect them to be wrong, written down now so the
-comparison later is honest:
+The remaining estimates are guesses. Where I expect them to be wrong, written down before the fact so
+the comparison afterwards is honest:
 
 - **Session 3 is the one I would still expect to run long.** The bulk rent report and the alert
   derivation are the two places where the brief's wording has to become exact behaviour, and the edge
@@ -127,6 +130,22 @@ comparison later is honest:
   already answered their questions; the rent classification has the most wording left to pin down.
 - **Session 4 is the riskiest**, because it carries deployment. Deployment on an unfamiliar free tier
   is the classic way to lose two hours to something that is not programming.
+
+**What actually happened in Session 3, since the prediction above was half right.** It came in at an
+hour rather than over three, but the reason it did is the reason I expected it to run long: the
+wording *did* have to become exact behaviour, and doing that was most of the work. Three places
+where the brief only implies an answer had to be settled before the code could be written — whether a
+bulk row is judged against its own amount or the month's total, what a row naming an archived unit
+does, and which day five days of grace actually makes a month overdue. All three are now in
+`decisions.md` as (p), (q) and (o).
+
+The last of those was a real fix rather than a choice. `schema.md` §5.1 said `today > (M + grace)`,
+which is six days of grace for a setting that says five. Nothing would have errored — the alert would
+just have arrived a day late, for ever. I found it writing the test rather than reading the code,
+which is becoming a pattern worth naming: **the reviews that ran something found real problems, and
+the reviews that only read code did not.**
+
+The other half of the hour went on tests: 116 new ones, taking the suite from 165 to 281.
 
 ## What I cut when I ran short
 

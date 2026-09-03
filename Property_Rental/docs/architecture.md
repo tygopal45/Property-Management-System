@@ -1,9 +1,9 @@
 # Architecture
 
-> **Status:** written at design time, before the code existed. **Seven of the ten requirements are now
-> built to it** — the models and migration, login, the role guards, units, maintenance requests, the
-> lifecycle, assignment, the searchable list and the timeline. The rent, alert and dashboard files
-> named below do not exist yet, and the Layout section marks which is which.
+> **Status:** written at design time, before the code existed. **All ten requirements are now built to
+> it**, and every file named below exists. What is still outstanding is the browser half: `web/` is a
+> sign-in page and a units table, so six of its eight screens are missing and the Layout section marks
+> which.
 >
 > The database design is not here — it lives in [`schema.md`](schema.md).
 
@@ -92,13 +92,14 @@ api/                    the FastAPI service
   · deps.py             current_user, require_manager, contractor scoping
   · security.py         bcrypt hashing, token minting and reading
   · models/             all eight tables — user, unit, request, enums
-  · schemas/            auth, unit, request  |  rent to come
-  · routers/            auth, units, requests |  rent, dashboard, alerts to come
-  · services/           units, rent lookup, requests, lifecycle, events
-                                              |  bulk, alerts to come
+  · schemas/            auth, unit, request, rent
+  · routers/            auth, units, requests, rent, alerts, dashboard
+  · services/           units, rent, requests, lifecycle, events, bulk,
+                        alerts, dashboard
   · alembic/versions/   one migration per schema step
   · tests/              pytest — roles, auth, units, rent history, lifecycle,
-                        assignments, timeline, the request list
+                        assignments, timeline, the request list, the rent rule,
+                        bulk rent, the rent roll, alerts, the dashboard
   · seed.py             users, units, six months of rent history, 20 requests
                         with real timelines spread over eight weeks
 web/                    the React app
@@ -106,6 +107,7 @@ web/                    the React app
   · api/client.js       fetch wrapper, 401 handling
   · pages/              Login, Units       |  Dashboard, UnitDetail, Requests,
                                               RequestDetail, RentRoll, Alerts, MyWork
+                                              — the six after the bar are not built
     components/
 · docs/                 the five required documents
 · images/               er-diagram.png
@@ -178,6 +180,17 @@ there is no scheduled job anywhere in this system and no stored value that can q
 That is the main trade-off in the whole design. The system stays simple and keeps giving the right
 answer as days pass, and the price is one extra "add up this unit's payments" query each time a page
 asks about rent. [`schema.md`](schema.md) §5.1 makes the case and §12 works out what it costs at scale.
+
+**Now that it is built, one thing is worth adding.** The rule ended up in a single function,
+`services/rent.py:classify`, and everything that asks about money goes through it — the rent roll, the
+bulk report, the alerts, and two of the dashboard's four headline numbers. That was the point of
+putting rules in a service layer rather than in routers, and it is the clearest example of it in the
+codebase: there is no second place where "matched" could come to mean something slightly different.
+
+The batched version, `rent_states`, exists because the alerts page asks about twelve months across the
+whole portfolio at once and doing that a pair at a time is the textbook N+1. It deliberately calls the
+same `classify` as the single-pair path, so the optimisation cannot drift away from the rule — and a
+test asserts the two give identical answers for the same inputs.
 
 ## What I decided not to build
 

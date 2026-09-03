@@ -296,7 +296,7 @@ partial  : due > 0  AND  0 < paid < due
 matched  : due > 0  AND  paid == due
 overpaid : due > 0  AND  paid >  due
 
-overdue  : (unpaid OR partial) AND today > (M + GRACE_PERIOD_DAYS)
+overdue  : (unpaid OR partial) AND today >= (M + GRACE_PERIOD_DAYS)
 ```
 
 **`not_due` is doing real work, and leaving it out was a bug.** `due` is zero for any month before the
@@ -318,6 +318,12 @@ requirement 7 asks for the two to be told apart. And requirement 10 says the ale
 "a short grace period before an unpaid month counts as overdue" without naming a number, so five days
 is my choice, not the brief's: long enough to cover a weekend and a slow bank transfer, short enough
 that a manager still finds out within the first week. It is one setting for every unit — §11.
+
+**The boundary is `>=`, and I changed it from `>` while writing the code.** Five days of grace means
+the 1st to the 5th are the grace days and the 6th is the first overdue day. Written as `>` it would
+have been the 7th — six days of grace for a setting that says five. Nothing would have errored; the
+alert would simply have arrived a day late for ever, which is the kind of off-by-one that survives a
+whole project because it never looks wrong. `test_grace_period_boundary` now pins all three days.
 
 **One vocabulary note, because the brief uses two words for one idea.** The state above is called
 `partial`. The bulk rent report calls the same situation **underpaid**, because that is requirement 7's
@@ -730,17 +736,31 @@ is one derived query.
 
 **The alerts endpoint goes first.** Alerts derive over *(unit × month)* pairs, so unlike every other
 query in the system they grow in **two dimensions at once**: 4,000 units across the 12-month window
-is ~48,000 candidate pairs, each needing a payment sum and a dismissal lookup, evaluated every time
-the navigation badge renders. At the brief's scale it is a few hundred pairs and invisible; at 100x
-it is the page everyone loads first.
+is ~48,000 candidate pairs, evaluated every time the navigation badge renders. At the brief's scale it
+is a few hundred pairs and invisible; at 100x it is the page everyone loads first.
 
-Fixes in the order they would actually be reached for:
+**One correction to what I predicted here, because the code came out better than the plan.** I wrote
+that each pair would need "a payment sum and a dismissal lookup", which describes ~96,000 round trips
+and is the textbook N+1. That is not what got built: `rent_states` fetches the rate history and the
+monthly totals in **two queries** for the whole grid and matches them up in Python, and the dismissals
+are a third. `test_rent_states_is_two_queries_regardless_of_size` counts the statements so it stays
+that way.
+
+So the shape of the problem changed. It is no longer round trips; it is that the endpoint loads every
+active unit and builds 48,000 objects in Python on each request. Still the first thing to degrade, and
+still for the same underlying reason — two dimensions — but the fixes are now about volume rather than
+chattiness:
 
 1. **Narrow the window** below 12 months. Cheap, and almost certainly sufficient — nobody chases rent
    from three years ago through this screen.
-2. **Cache the badge count** per manager for 60 seconds; the number does not need to be
+2. **Push the filter into SQL**, so the database returns only the pairs that are actually overdue
+   instead of the application classifying every pair to discard most of them. This is the real fix and
+   it is the one I would do; the reason it is not done now is that the Python version is the same rule
+   the rent roll and the bulk report use, and having one rule in one place is worth more at this scale
+   than a query that is faster than it needs to be.
+3. **Cache the badge count** per manager for 60 seconds; the number does not need to be
    transactional.
-3. **Only then** a materialised `unit_month_rent_summary`, refreshed on payment insert —
+4. **Only then** a materialised `unit_month_rent_summary`, refreshed on payment insert —
    reintroducing the stored value deliberately, *with the ledger still the source of truth*, once
    there is a measured reason rather than a guess.
 
@@ -752,9 +772,17 @@ hundred requests that is invisible. At 20,000 it is a full table scan, and it ru
 index on `description`, which is the one place the portability rule in §10 would have to bend, since
 full-text syntax differs between MySQL and Postgres.
 
-**Third is the rent roll CSV.** It grows in one dimension rather than two. It is specified to stream
-rows out as it reads them rather than building the whole file in memory first, so at 100x it should get
-slow rather than run out of memory.
+**Third is the rent roll CSV.** It grows in one dimension rather than two, and it streams rows out as
+it formats them rather than building the whole file in memory first, so at 100x it gets slow rather
+than running out of memory. The one place it would still bite is that it loads every unit before it
+starts streaming, so the first byte waits for the whole portfolio.
+
+**And a new one that only exists now that requirement 7 is built: the bulk batch loads every unit.**
+`services/bulk.py` reads the entire units table into a dictionary so that identifier matching happens
+in Python rather than in SQL — which is deliberate, because MySQL and SQLite disagree about whether
+`4b` equals `4B` (§10, and `decisions.md` (w)). At 4,000 units that dictionary is still small; the
+honest ceiling is tens of thousands, after which the matching has to move into SQL with an explicit
+collation, and the portability rule has to bend for it the same way the full-text index bends.
 
 One detail about that search worth naming, because it is a correctness point rather than a speed
 one: `%` and `_` are `LIKE` wildcards, so the search term is escaped before it goes into the pattern.
@@ -775,8 +803,9 @@ I write every rule above as a plain function that takes values and returns a val
 be tested on its own without going through HTTP.
 
 The list below was written from the requirements before any code was written, so it is a
-specification rather than a report. **Items marked *(written)* now exist and pass — 165 tests in
-total, running in under four seconds.** Everything unmarked is still specification, and belongs to a session that has not run yet.
+specification rather than a report. **Every item is now marked *(written)*: 281 tests pass in about
+four seconds.** The wording of each item is the one from the original list, so it can be read against
+what was promised rather than against what was convenient to build.
 
 Lifecycle:
 
@@ -794,21 +823,39 @@ Rent:
 - **Raise the rent, and past months keep their old price.** *(written)* Add a 1300 rate from
   September to a unit renting at 1200, then re-read July and August: both still 1200. This is the test
   that catches the bug in §4b, and it is the one I would want run first.
-- A bulk batch with one row of each kind returns matched / underpaid / overpaid / unmatched.
+- A bulk batch with one row of each kind returns matched / underpaid / overpaid / unmatched
+  *(written — and the same test proves only the first three record a payment)*.
 - No rent is owed for a month before the unit's first rate *(written)*, or for the month it was
-  archived and after.
+  archived and after *(written)*.
+- Payments of 0.10, 0.20, 333.33, 333.33 and 333.04 against a rent of 1000 come to exactly `matched`
+  *(written)*. `matched` is an equality test on money, so any float drift would chase a tenant who
+  paid in full — and SQLite, which has no decimal type, is where that would appear first.
 
 Alerts:
 
-- A unit unpaid in months M and M+1, with M dismissed: M is hidden **and M+1 still shows**. This is the
-  test that would have caught the boolean design in §5.2.
-- Dismissing the same month twice does not create a second row.
-- An archived unit produces no alerts, and the badge count matches the number of rows in the list.
+- A unit unpaid in months M and M+1, with M dismissed: M is hidden **and M+1 still shows** *(written)*.
+  This is the test that would have caught the boolean design in §5.2.
+- Dismissing the same month twice does not create a second row *(written)*.
+- An archived unit produces no alerts *(written)*, and the badge count matches the number of rows in
+  the list *(written)*.
+- Nothing is overdue on the 5th and everything unpaid is overdue on the 6th *(written)* — the grace
+  boundary, pinned on all three days.
+
+Dashboard:
+
+- A request resolved in an earlier week, then reopened, still counts in that earlier week *(written)*.
+  This is the §8 argument as a test: reading `resolved_at` would silently shrink a bar that had
+  already been reported.
+- A request resolved twice counts in both weeks *(written)*, because the chart counts resolutions
+  rather than currently-resolved requests.
+- All eight weeks appear even when empty *(written)*, and a request with two contractors on it counts
+  once for each rather than twice overall *(written)*.
 
 Roles and history:
 
-- A contractor gets 403 on every rent route, on `/api/units` writes *(written — every manager-only
-  route, parametrised, plus 401 when signed out)*, and on the assignment routes *(written)*.
+- A contractor gets 403 on every rent route *(written — all six of the bulk, roll, CSV, alerts,
+  dismiss and dashboard routes, parametrised, plus 401 when signed out)*, on `/api/units` writes
+  *(written — same shape)*, and on the assignment routes *(written)*.
 - A contractor reading a unit gets the number and the address but **no rent figure and no rent
   history** *(written)*. Requirement 1 says they cannot see rent data, and a field stripped in the
   browser is still a field that was sent.
@@ -817,4 +864,5 @@ Roles and history:
 - An event row is unchanged after trying every route that touches its request *(written)*, and no
   route that edits or deletes an event exists at all *(written — asserted against the route table,
   because a 404 from a made-up URL would prove nothing)*.
-- Reopening a request does not change what the eight-week chart reported for an earlier week (§8).
+- Reopening a request does not change what the eight-week chart reported for an earlier week (§8)
+  *(written)*.
