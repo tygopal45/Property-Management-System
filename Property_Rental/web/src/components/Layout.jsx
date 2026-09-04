@@ -1,3 +1,4 @@
+import React from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { api } from '../api/client.js'
 import {
@@ -76,8 +77,40 @@ export default function Layout({ user, alertCount, onSignedOut }) {
         </div>
       </nav>
       <main>
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </>
   )
 }
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('View render error:', error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="card" style={{ padding: '2.5rem', textAlign: 'center', margin: '2rem auto', maxWidth: '32rem' }}>
+          <h3>Unable to display this view</h3>
+          <p className="error" style={{ justifyContent: 'center', margin: '1rem 0' }}>
+            {this.state.error?.message ?? 'An unexpected error occurred'}
+          </p>
+          <button className="primary" onClick={() => { this.setState({ hasError: false }); window.location.reload() }}>
+            Reload Page
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+

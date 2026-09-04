@@ -187,42 +187,45 @@ export default function Requests({ user }) {
                 </tr>
               </thead>
               <tbody>
-                {page.items.map((req) => (
-                  <tr key={req.id}>
-                    <td style={{ fontWeight: 600, color: 'var(--muted)' }}>#{req.id}</td>
-                    <td>
-                      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{req.unit_number}</span>
-                    </td>
-                    <td>
-                      <Link to={`/requests/${req.id}`} style={{ fontWeight: 600 }}>
-                        {req.description}
-                      </Link>
-                    </td>
-                    <td>
-                      <span className={`tag ${req.priority}`}>{req.priority}</span>
-                    </td>
-                    <td>
-                      <span className={`tag ${req.status}`}>{req.status}</span>
-                    </td>
-                    <td>
-                      {req.contractor_names.length === 0 ? (
-                        <span className="muted" style={{ fontSize: '0.8rem' }}>Unassigned</span>
-                      ) : (
-                        <span style={{ fontSize: '0.85rem', color: 'var(--ink)' }}>
-                          {req.contractor_names.join(', ')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="muted" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
-                      {dateTime(req.created_at)}
-                    </td>
-                    <td>
-                      <Link to={`/requests/${req.id}`} style={{ display: 'inline-flex', color: 'var(--muted)' }}>
-                        <ChevronRightIcon size={16} />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {page.items.map((req) => {
+                  const assigned = req.contractors ?? []
+                  return (
+                    <tr key={req.id}>
+                      <td style={{ fontWeight: 600, color: 'var(--muted)' }}>#{req.id}</td>
+                      <td>
+                        <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{unitNumber(units, req.unit_id)}</span>
+                      </td>
+                      <td>
+                        <Link to={`/requests/${req.id}`} style={{ fontWeight: 600 }}>
+                          {req.description}
+                        </Link>
+                      </td>
+                      <td>
+                        <span className={`tag ${req.priority}`}>{req.priority}</span>
+                      </td>
+                      <td>
+                        <span className={`tag ${req.status}`}>{req.status}</span>
+                      </td>
+                      <td>
+                        {assigned.length === 0 ? (
+                          <span className="muted" style={{ fontSize: '0.8rem' }}>nobody yet</span>
+                        ) : (
+                          <span style={{ fontSize: '0.85rem', color: 'var(--ink)' }}>
+                            {assigned.map((c) => c.name).join(', ')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="muted" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                        {dateTime(req.created_at)}
+                      </td>
+                      <td>
+                        <Link to={`/requests/${req.id}`} style={{ display: 'inline-flex', color: 'var(--muted)' }}>
+                          <ChevronRightIcon size={16} />
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -267,3 +270,8 @@ function Filter({ label, value, onChange, options }) {
     </label>
   )
 }
+
+function unitNumber(units, unitId) {
+  return units?.find((u) => u.id === unitId)?.unit_number ?? `#${unitId}`
+}
+
