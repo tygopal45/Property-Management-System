@@ -1,171 +1,715 @@
-/* One hand-written stylesheet, no framework.
-   The brief never mentions appearance and scores judgement, so this is deliberately modest:
-   enough that a manager can read a rent roll at a glance, and no build step beyond Vite. */
+/* ==========================================================================
+   Property Rental & Maintenance - Modern Design System
+   Preserves all test selectors and semantics while providing a clean,
+   elevated, highly responsive and intuitive user interface.
+   ========================================================================== */
 
 :root {
-  --ink: #1a1a1a;
-  --muted: #6b6b6b;
-  --line: #e2e2e2;
+  --ink: #0f172a;
+  --text-secondary: #475569;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
   --paper: #ffffff;
-  --ground: #f7f7f8;
-  --accent: #1d4ed8;
-  --bad: #b00020;
-  --warn: #a15c00;
-  --good: #17683a;
+  --ground: #f8fafc;
+  --surface-alt: #f1f5f9;
 
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Brand / Accents */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-light: #eff6ff;
+  --accent-border: #bfdbfe;
+
+  /* Semantic Feedback */
+  --bad: #dc2626;
+  --bad-light: #fef2f2;
+  --bad-border: #fecaca;
+  --warn: #d97706;
+  --warn-light: #fffbeb;
+  --warn-border: #fde68a;
+  --good: #059669;
+  --good-light: #ecfdf5;
+  --good-border: #a7f3d0;
+
+  /* Geometry & Shadows */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.02);
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
   color: var(--ink);
   background: var(--ground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; }
-a { color: var(--accent); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--ground);
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+a:hover { color: var(--accent-hover); text-decoration: underline; }
 
-/* --- shell ------------------------------------------------------------------------------- */
+/* --- Navigation Shell ---------------------------------------------------- */
 
 .nav {
   background: var(--paper);
   border-bottom: 1px solid var(--line);
-  padding: 0 1.5rem;
+  padding: 0 2rem;
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  gap: 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
 }
-.nav h1 { font-size: 1rem; margin: 0.9rem 0; letter-spacing: 0.01em; }
-.nav ul { display: flex; gap: 0.25rem; list-style: none; margin: 0; padding: 0; flex: 1; }
-.nav a {
-  display: block;
-  padding: 0.9rem 0.7rem;
-  text-decoration: none;
-  color: var(--ink);
-  border-bottom: 2px solid transparent;
-}
-.nav a:hover { background: var(--ground); }
-.nav a.active { border-bottom-color: var(--accent); color: var(--accent); font-weight: 600; }
-.nav .who { color: var(--muted); font-size: 0.875rem; }
 
-/* Requirement 10 asks for the count to be visible in the navigation, so it rides on the link. */
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--ink);
+  text-decoration: none;
+  margin: 0.85rem 0;
+}
+.nav-brand:hover { text-decoration: none; }
+.nav-brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+}
+
+.nav h1 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.nav ul {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.85rem;
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  border-bottom: none;
+}
+.nav a:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+  text-decoration: none;
+}
+.nav a.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Requirement 10: Count badge visible in navigation */
 .badge {
-  display: inline-block;
-  min-width: 1.35rem;
-  margin-left: 0.4rem;
-  padding: 0 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.4rem;
   border-radius: 999px;
   background: var(--bad);
-  color: #fff;
-  font-size: 0.75rem;
+  color: #ffffff;
+  font-size: 0.725rem;
   font-weight: 700;
-  text-align: center;
-  line-height: 1.35rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
 }
 
-main { max-width: 68rem; margin: 0 auto; padding: 1.5rem; }
-h2 { margin-top: 0; font-size: 1.35rem; }
-h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+.nav .who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface-alt);
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.user-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #334155;
+}
+.role-badge {
+  font-size: 0.725rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+  text-transform: capitalize;
+}
 
-/* --- surfaces ---------------------------------------------------------------------------- */
+/* --- Main Content Layout ------------------------------------------------- */
+
+main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: var(--ink);
+}
+
+/* --- Surfaces / Cards ---------------------------------------------------- */
 
 .card {
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 1rem 1.15rem;
+  border-radius: var(--radius-md);
+  padding: 1.35rem 1.5rem;
   margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
-.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.card:hover {
+  box-shadow: var(--shadow-sm);
+}
 
-.figure { text-align: left; }
-.figure .value { font-size: 2rem; font-weight: 700; line-height: 1.15; }
-.figure .label { color: var(--muted); font-size: 0.8125rem; }
+.row {
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
 
-table { border-collapse: collapse; width: 100%; background: var(--paper); }
-th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
-th { font-weight: 600; background: #f2f2f4; font-size: 0.8125rem; }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-tbody tr:hover { background: #fbfbfc; }
-
-/* --- controls ---------------------------------------------------------------------------- */
-
-label { display: block; margin-bottom: 0.75rem; }
-label span { display: block; font-size: 0.8125rem; margin-bottom: 0.25rem; color: var(--muted); }
-input, select, textarea {
-  padding: 0.45rem 0.5rem;
-  font: inherit;
+/* KPI Figures */
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.25rem;
+}
+.figure .value {
+  font-size: 2.15rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.figure .label {
+  color: var(--muted);
+  font-size: 0.825rem;
+  font-weight: 500;
+}
+.figure-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-radius: var(--radius-md);
   border: 1px solid var(--line);
-  border-radius: 5px;
   background: var(--paper);
-  max-width: 22rem;
+}
+.figure-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* --- Tables -------------------------------------------------------------- */
+
+.table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+table {
+  border-collapse: collapse;
   width: 100%;
-}
-textarea { max-width: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-button {
-  padding: 0.45rem 0.9rem;
-  font: inherit;
-  cursor: pointer;
-  border: 1px solid var(--line);
-  border-radius: 5px;
   background: var(--paper);
+  font-size: 0.875rem;
 }
-button:hover:not(:disabled) { background: var(--ground); }
-button:disabled { opacity: 0.55; cursor: not-allowed; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button.primary:hover:not(:disabled) { background: #1b44bd; }
 
-/* --- state --------------------------------------------------------------------------------- */
+th, td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
 
-.error { color: var(--bad); }
-.muted { color: var(--muted); font-size: 0.875rem; }
-
-.tag {
-  display: inline-block;
-  padding: 0.1rem 0.45rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
+th {
   font-weight: 600;
-  border: 1px solid var(--line);
-  background: var(--ground);
-  white-space: nowrap;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
-.tag.urgent, .tag.unpaid, .tag.overdue { background: #fdecec; color: var(--bad); border-color: #f6c9c9; }
-.tag.high, .tag.partial { background: #fff4e0; color: var(--warn); border-color: #f2ddb4; }
-.tag.matched, .tag.resolved { background: #e7f5ec; color: var(--good); border-color: #bfe3ce; }
-.tag.overpaid, .tag.scheduled { background: #e8f0fe; color: var(--accent); border-color: #c6d8fb; }
 
-/* --- the eight-week chart ------------------------------------------------------------------ */
-/* Bars in CSS rather than a charting library. Requirement 8 asks for the figure; a dependency
-   for eight numbers would be more to install, audit and deploy than the chart is worth. */
+td.num, th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 
-.chart { display: flex; align-items: flex-end; gap: 0.6rem; height: 9rem; margin-top: 0.75rem; }
-.chart .bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
-.chart .fill { background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
-.chart .fill.empty { background: var(--line); }
-.chart .count { font-size: 0.8125rem; font-weight: 600; text-align: center; }
-.chart .week { font-size: 0.6875rem; color: var(--muted); text-align: center; margin-top: 0.3rem; }
+tbody tr {
+  transition: background-color 0.12s ease;
+}
+tbody tr:hover {
+  background: #f8fafc;
+}
+tbody tr:last-child td {
+  border-bottom: none;
+}
 
-/* --- additions for the rent, alerts and unit screens --------------------------------------- */
+/* --- Controls & Inputs --------------------------------------------------- */
 
-/* The CSV export is a link, not a button — the browser saves the file itself. It is dressed as a
-   button because it does what the buttons beside it do. */
-.button-link {
-  display: inline-block;
-  padding: 0.45rem 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 5px;
+label {
+  display: block;
+  margin-bottom: 0.85rem;
+}
+label span {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: #334155;
+}
+
+input, select, textarea {
+  padding: 0.55rem 0.75rem;
+  font: inherit;
+  font-size: 0.875rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
   background: var(--paper);
+  color: var(--ink);
+  max-width: 24rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+textarea {
+  max-width: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.825rem;
+  line-height: 1.45;
+}
+
+button, .button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+button:hover:not(:disabled), .button-link:hover {
+  background: var(--surface-alt);
+  border-color: #94a3b8;
   color: var(--ink);
   text-decoration: none;
 }
-.button-link:hover { background: var(--ground); }
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 
-tfoot th { background: var(--paper); border-top: 2px solid var(--line); border-bottom: none; }
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+}
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #ffffff;
+}
 
-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875em; }
+button.subtle {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  padding: 0.35rem 0.65rem;
+}
+button.subtle:hover:not(:disabled) {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
 
-/* The remaining rent states and bulk outcomes. `not_due` and `unmatched` are deliberately grey:
-   neither is a problem with the money, they are both "no rent is being collected here". */
-.tag.underpaid { background: #fff4e0; color: var(--warn); border-color: #f2ddb4; }
-.tag.not_due, .tag.unmatched { background: var(--ground); color: var(--muted); }
+button.danger {
+  background: var(--bad-light);
+  border-color: var(--bad-border);
+  color: var(--bad);
+}
+button.danger:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+/* --- Feedback & State ---------------------------------------------------- */
+
+.error {
+  color: var(--bad);
+  background: var(--bad-light);
+  border: 1px solid var(--bad-border);
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  margin: 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* --- Tags / Badges (Preserved selectors for test suite) ------------------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  line-height: 1.25;
+  text-transform: capitalize;
+}
+
+.tag.urgent, .tag.unpaid, .tag.overdue {
+  background: var(--bad-light);
+  color: var(--bad);
+  border-color: var(--bad-border);
+}
+.tag.high, .tag.partial, .tag.underpaid {
+  background: var(--warn-light);
+  color: var(--warn);
+  border-color: var(--warn-border);
+}
+.tag.matched, .tag.resolved {
+  background: var(--good-light);
+  color: var(--good);
+  border-color: var(--good-border);
+}
+.tag.overpaid, .tag.scheduled {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+.tag.not_due, .tag.unmatched {
+  background: var(--surface-alt);
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+/* --- The 8-Week Chart ----------------------------------------------------- */
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  height: 11rem;
+  margin-top: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.chart .bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+  position: relative;
+}
+.chart .fill {
+  width: 100%;
+  max-width: 48px;
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+.chart .fill:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+.chart .fill.empty {
+  background: #e2e8f0;
+  box-shadow: none;
+}
+.chart .count {
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.35rem;
+}
+.chart .week {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 0.5rem;
+  white-space: nowrap;
+}
+
+/* --- Timeline Component -------------------------------------------------- */
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative;
+  margin: 1.25rem 0;
+  padding-left: 1.5rem;
+}
+.timeline-list::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--line);
+}
+.timeline-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.timeline-dot {
+  position: absolute;
+  left: -1.5rem;
+  top: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.timeline-actor {
+  font-weight: 600;
+  color: var(--ink);
+}
+.timeline-body {
+  font-size: 0.875rem;
+  color: #334155;
+  background: var(--surface-alt);
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+
+/* --- Lifecycle Stepper --------------------------------------------------- */
+
+.lifecycle-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-alt);
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--line);
+  overflow-x: auto;
+}
+.stepper-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.stepper-step.active {
+  color: var(--accent);
+}
+.stepper-step.passed {
+  color: var(--good);
+}
+.stepper-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  background: #e2e8f0;
+  color: #64748b;
+}
+.stepper-step.active .stepper-circle {
+  background: var(--accent);
+  color: #ffffff;
+}
+.stepper-step.passed .stepper-circle {
+  background: var(--good);
+  color: #ffffff;
+}
+.stepper-divider {
+  flex: 1;
+  height: 2px;
+  background: var(--line);
+  margin: 0 0.75rem;
+  min-width: 1.5rem;
+}
+
+/* --- Modal Dialogs & Helpers --------------------------------------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+.modal-card {
+  background: var(--paper);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line);
+  width: 100%;
+  max-width: 32rem;
+  padding: 1.75rem;
+}
+
+tfoot th {
+  background: var(--paper);
+  border-top: 2px solid var(--line);
+  border-bottom: none;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  background: var(--surface-alt);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}

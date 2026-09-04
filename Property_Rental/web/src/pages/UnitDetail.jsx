@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client.js'
 import { dateTime, money, monthName, shortDate } from '../format.js'
+import { AlertCircleIcon, UnitIcon, RentIcon, RequestIcon, PlusIcon, ChevronRightIcon } from '../components/Icons.jsx'
 
 /* Requirement 2 on one screen, plus requirement 3's "opening a unit shows its requests".
  *
@@ -34,8 +35,6 @@ export default function UnitDetail({ user, onChanged }) {
 
   useEffect(load, [load])
 
-  // One place for every action, so one place clears the last error, reloads, and shows the
-  // server's own sentence when it refuses. Same shape as the request screen.
   async function act(fn) {
     setBusy(true)
     setError(null)
@@ -52,26 +51,44 @@ export default function UnitDetail({ user, onChanged }) {
     }
   }
 
-  if (error && !unit) return <p className="error">{error}</p>
+  if (error && !unit) return <div className="error"><AlertCircleIcon size={16} /><span>{error}</span></div>
   if (!unit) return <p className="muted">Loading…</p>
 
   return (
     <section>
-      <p className="muted"><Link to="/units">← All units</Link></p>
-      <h2>
-        Unit {unit.unit_number}{' '}
-        {unit.archived_at && <span className="tag">archived</span>}
-      </h2>
-      <p className="muted">
-        {unit.address} · tenant {unit.tenant_name}
-        {isManager && <> · rent now {unit.current_rent ? money(unit.current_rent) : '—'}</>}
-      </p>
+      <div style={{ marginBottom: '1rem' }}>
+        <Link to="/units" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.875rem' }}>
+          ← All units
+        </Link>
+      </div>
 
-      {error && <p className="error">{error}</p>}
+      <div className="page-header" style={{ alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <h2>Unit {unit.unit_number}</h2>
+            {unit.archived_at ? (
+              <span className="tag not_due">archived</span>
+            ) : (
+              <span className="tag matched">Active</span>
+            )}
+          </div>
+          <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+            {unit.address} · Tenant: <strong style={{ color: 'var(--ink)' }}>{unit.tenant_name}</strong>
+            {isManager && <> · Current rent: <strong style={{ color: 'var(--ink)' }}>{unit.current_rent ? money(unit.current_rent) : '—'}</strong></>}
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="error">
+          <AlertCircleIcon size={16} />
+          <span>{error}</span>
+        </div>
+      )}
 
       {unit.archived_at && (
-        <div className="card">
-          <p className="muted" style={{ margin: 0 }}>
+        <div className="card" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
+          <p className="muted" style={{ margin: 0, color: '#92400e' }}>
             Archived on {shortDate(unit.archived_at)}. The row is kept rather than deleted, so its
             payments and maintenance requests still point at something real — and no rent is owed
             for the archiving month or any month after it, which is what stops an empty flat
@@ -86,17 +103,20 @@ export default function UnitDetail({ user, onChanged }) {
             <EditUnit unit={unit} busy={busy} act={act} onDone={() => setEditing(false)} />
           ) : (
             <div className="card">
-              <div className="row" style={{ justifyContent: 'space-between' }}>
-                <h3 style={{ margin: 0 }}>Details</h3>
+              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 0.25rem' }}>Unit Settings & State</h3>
+                  <span className="muted" style={{ fontSize: '0.8rem' }}>Update address, tenant, or archive status</span>
+                </div>
                 <div className="row">
-                  <button onClick={() => setEditing(true)} disabled={busy}>Edit</button>
+                  <button onClick={() => setEditing(true)} disabled={busy}>Edit details</button>
                   {unit.archived_at ? (
-                    <button onClick={() => act(() => api.restoreUnit(id))} disabled={busy}>
-                      Restore
+                    <button className="primary" onClick={() => act(() => api.restoreUnit(id))} disabled={busy}>
+                      Restore unit
                     </button>
                   ) : (
-                    <button onClick={() => act(() => api.archiveUnit(id))} disabled={busy}>
-                      Archive
+                    <button className="danger" onClick={() => act(() => api.archiveUnit(id))} disabled={busy}>
+                      Archive unit
                     </button>
                   )}
                 </div>
@@ -109,35 +129,49 @@ export default function UnitDetail({ user, onChanged }) {
         </>
       )}
 
-      <h3>Maintenance requests</h3>
-      {requests.length === 0 ? (
-        <p className="muted">
-          {isManager ? 'No requests against this unit.' : 'None of this unit’s requests are assigned to you.'}
-        </p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Description</th>
-              <th>Priority</th>
-              <th>Status</th>
-              <th>Raised</th>
-            </tr>
-          </thead>
-          <tbody>
-            {requests.map((request) => (
-              <tr key={request.id}>
-                <td><Link to={`/requests/${request.id}`}>{request.id}</Link></td>
-                <td>{request.description}</td>
-                <td><span className={`tag ${request.priority}`}>{request.priority}</span></td>
-                <td><span className={`tag ${request.status}`}>{request.status}</span></td>
-                <td>{shortDate(request.created_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <div className="card">
+        <h3 style={{ margin: '0 0 0.75rem' }}>Maintenance requests</h3>
+        {requests.length === 0 ? (
+          <p className="muted" style={{ margin: 0 }}>
+            {isManager ? 'No requests against this unit.' : 'None of this unit’s requests are assigned to you.'}
+          </p>
+        ) : (
+          <div className="table-wrap" style={{ margin: 0 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: '70px' }}>#</th>
+                  <th>Description</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Raised</th>
+                  <th style={{ width: '40px' }} />
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((request) => (
+                  <tr key={request.id}>
+                    <td style={{ fontWeight: 600, color: 'var(--muted)' }}>#{request.id}</td>
+                    <td>
+                      <Link to={`/requests/${request.id}`} style={{ fontWeight: 600 }}>
+                        {request.description}
+                      </Link>
+                    </td>
+                    <td><span className={`tag ${request.priority}`}>{request.priority}</span></td>
+                    <td><span className={`tag ${request.status}`}>{request.status}</span></td>
+                    <td className="muted">{shortDate(request.created_at)}</td>
+                    <td>
+                      <Link to={`/requests/${request.id}`} style={{ color: 'var(--muted)', display: 'inline-flex' }}>
+                        <ChevronRightIcon size={16} />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </section>
   )
 }
@@ -156,18 +190,20 @@ function EditUnit({ unit, busy, act, onDone }) {
   }
 
   return (
-    <form className="card" onSubmit={save}>
-      <h3>Edit unit {unit.unit_number}</h3>
-      <label>
-        <span>Address</span>
-        <input value={address} onChange={(e) => setAddress(e.target.value)} required maxLength={255} />
-      </label>
-      <label>
-        <span>Tenant name</span>
-        <input value={tenantName} onChange={(e) => setTenantName(e.target.value)} required maxLength={120} />
-      </label>
-      <div className="row">
-        <button className="primary" disabled={busy}>Save</button>
+    <form className="card" onSubmit={save} style={{ border: '2px solid var(--accent)' }}>
+      <h3 style={{ color: 'var(--accent)' }}>Edit unit {unit.unit_number}</h3>
+      <div className="grid">
+        <label>
+          <span>Address</span>
+          <input value={address} onChange={(e) => setAddress(e.target.value)} required maxLength={255} />
+        </label>
+        <label>
+          <span>Tenant name</span>
+          <input value={tenantName} onChange={(e) => setTenantName(e.target.value)} required maxLength={120} />
+        </label>
+      </div>
+      <div className="row" style={{ marginTop: '0.75rem' }}>
+        <button type="submit" className="primary" disabled={busy}>Save</button>
         <button type="button" onClick={onDone} disabled={busy}>Cancel</button>
       </div>
     </form>
@@ -196,40 +232,45 @@ function RentHistory({ unit, busy, act }) {
 
   return (
     <div className="card">
-      <h3>Rent history</h3>
+      <h3 style={{ margin: '0 0 0.5rem' }}>Rent history</h3>
       {history.length === 0 ? (
         <p className="muted">No rent set yet, so no rent is owed for any month.</p>
       ) : (
-        <table>
-          <thead>
-            <tr><th>From</th><th className="num">Monthly rent</th></tr>
-          </thead>
-          <tbody>
-            {history.map((row) => (
-              <tr key={row.effective_from}>
-                <td>{monthName(row.effective_from)}</td>
-                <td className="num">{money(row.monthly_rent)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Effective From</th><th className="num">Monthly rent</th></tr>
+            </thead>
+            <tbody>
+              {history.map((row) => (
+                <tr key={row.effective_from}>
+                  <td>{monthName(row.effective_from)}</td>
+                  <td className="num" style={{ fontWeight: 600 }}>{money(row.monthly_rent)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-      <form onSubmit={change} style={{ marginTop: '0.75rem' }}>
-        <div className="row">
+      <form onSubmit={change} style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--line)' }}>
+        <div className="row" style={{ alignItems: 'flex-end' }}>
           <label style={{ margin: 0 }}>
             <span>New rent</span>
             <input
               type="number" step="0.01" min="0" value={rent}
               onChange={(e) => setRent(e.target.value)} required style={{ width: '9rem' }}
+              placeholder="e.g. 1300.00"
             />
           </label>
           <label style={{ margin: 0 }}>
             <span>Applies from</span>
-            <input type="month" value={from} onChange={(e) => setFrom(e.target.value)} required />
+            <input type="month" value={from} onChange={(e) => setFrom(e.target.value)} required style={{ width: 'auto' }} />
           </label>
-          <button disabled={busy || !rent}>Change rent</button>
+          <button type="submit" disabled={busy || !rent} className="primary" style={{ height: '38px' }}>
+            Change rent
+          </button>
         </div>
-        <p className="muted" style={{ marginBottom: 0 }}>
+        <p className="muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem', marginBottom: 0 }}>
           Adds a rate rather than overwriting one. Months before this start month keep the rent
           they were actually charged.
         </p>
@@ -255,42 +296,47 @@ function Payments({ unitId, payments, busy, act }) {
 
   return (
     <div className="card">
-      <h3>Rent payments</h3>
-      <form onSubmit={record}>
-        <div className="row">
+      <h3 style={{ margin: '0 0 0.5rem' }}>Rent payments</h3>
+      <form onSubmit={record} style={{ marginBottom: '1rem' }}>
+        <div className="row" style={{ alignItems: 'flex-end' }}>
           <label style={{ margin: 0 }}>
             <span>Amount received</span>
             <input
               type="number" step="0.01" min="0.01" value={amount}
-              onChange={(e) => setAmount(e.target.value)} required style={{ width: '9rem' }}
+              onChange={(e) => setAmount(e.target.value)} required style={{ width: '10rem' }}
+              placeholder="e.g. 1200.00"
             />
           </label>
           <label style={{ margin: 0 }}>
             <span>Covers month</span>
-            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} required />
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} required style={{ width: 'auto' }} />
           </label>
-          <button className="primary" disabled={busy || !amount}>Record payment</button>
+          <button className="primary" disabled={busy || !amount} style={{ height: '38px' }}>
+            Record payment
+          </button>
         </div>
       </form>
       {payments.length === 0 ? (
         <p className="muted" style={{ marginBottom: 0 }}>Nothing recorded against this unit yet.</p>
       ) : (
-        <table style={{ marginTop: '0.75rem' }}>
-          <thead>
-            <tr><th>Covers</th><th className="num">Amount</th><th>Entered</th></tr>
-          </thead>
-          <tbody>
-            {payments.map((payment) => (
-              <tr key={payment.id}>
-                <td>{monthName(payment.period_month)}</td>
-                <td className="num">{money(payment.amount)}</td>
-                <td className="muted">{dateTime(payment.created_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Covers</th><th className="num">Amount</th><th>Entered</th></tr>
+            </thead>
+            <tbody>
+              {payments.map((payment) => (
+                <tr key={payment.id}>
+                  <td style={{ fontWeight: 500 }}>{monthName(payment.period_month)}</td>
+                  <td className="num" style={{ fontWeight: 600 }}>{money(payment.amount)}</td>
+                  <td className="muted">{dateTime(payment.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-      <p className="muted" style={{ marginBottom: 0 }}>
+      <p className="muted" style={{ fontSize: '0.8rem', marginTop: '0.75rem', marginBottom: 0 }}>
         Payments are a list, never a running total. That is what lets one month hold a part
         payment, a late payment and a correction without any of them overwriting the others.
       </p>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client.js'
 import { dateTime } from '../format.js'
+import { SearchIcon, FilterIcon, ChevronRightIcon, AlertCircleIcon } from '../components/Icons.jsx'
 
 /* Requirement 6: one list, searched, filtered, sorted and paged — on the server.
  *
@@ -28,8 +29,7 @@ export default function Requests({ user }) {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // What the box shows while you type, kept apart from `q` in the URL so that every keystroke is
-  // not a request. The URL only changes when the search is submitted.
+  // What the box shows while typing, kept apart from `q` in URL so every keystroke isn't a request
   const [typed, setTyped] = useState(params.get('q') ?? '')
 
   const current = Number(params.get('page') ?? 1)
@@ -57,8 +57,6 @@ export default function Requests({ user }) {
     if (user.role === 'manager') api.contractors().then(setContractors).catch(() => setContractors([]))
   }, [user.role])
 
-  // Changing any filter returns to page 1. Staying on page 4 of a narrower list is how a screen
-  // ends up showing "no results" for a search that has plenty.
   function set(key, value) {
     const next = new URLSearchParams(params)
     if (value) next.set(key, value)
@@ -77,101 +75,181 @@ export default function Requests({ user }) {
 
   return (
     <section>
-      <h2>Maintenance requests</h2>
+      <div className="page-header">
+        <div>
+          <h2>Maintenance requests</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            {user.role === 'manager' ? 'All requests across the entire portfolio' : 'Requests assigned to you'}
+          </p>
+        </div>
+      </div>
 
-      <div className="card">
+      {error && (
+        <div className="error">
+          <AlertCircleIcon size={16} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="card" style={{ marginBottom: '1.25rem' }}>
         <form
           className="row"
           onSubmit={(event) => {
             event.preventDefault()
             set('q', typed.trim())
           }}
+          style={{ alignItems: 'flex-end' }}
         >
-          <label style={{ flex: '2 1 16rem', marginBottom: 0 }}>
+          <label style={{ flex: '2 1 18rem', marginBottom: 0 }}>
             <span>Search descriptions</span>
-            <input
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-              placeholder="boiler, window, damp…"
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                value={typed}
+                onChange={(event) => setTyped(event.target.value)}
+                placeholder="e.g. boiler, leaking faucet, window latch…"
+                style={{ paddingLeft: '2.25rem', maxWidth: '100%' }}
+              />
+              <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', display: 'flex', pointerEvents: 'none' }}>
+                <SearchIcon size={16} />
+              </div>
+            </div>
           </label>
-          <button type="submit">Search</button>
+          <button type="submit" className="primary" style={{ height: '38px' }}>
+            Search
+          </button>
         </form>
 
-        <div className="row" style={{ marginTop: '1rem' }}>
-          <Filter label="Unit" value={params.get('unit_id')} onChange={(v) => set('unit_id', v)}
-            options={units.map((u) => [u.id, `${u.unit_number} — ${u.address}`])} />
-          <Filter label="Status" value={params.get('status')} onChange={(v) => set('status', v)}
-            options={['reported', 'triaged', 'scheduled', 'resolved'].map((s) => [s, s])} />
-          <Filter label="Priority" value={params.get('priority')} onChange={(v) => set('priority', v)}
-            options={['urgent', 'high', 'medium', 'low'].map((p) => [p, p])} />
+        <div className="row" style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--line)', alignItems: 'flex-end' }}>
+          <Filter
+            label="Unit"
+            value={params.get('unit_id')}
+            onChange={(v) => set('unit_id', v)}
+            options={units.map((u) => [u.id, `${u.unit_number} — ${u.address}`])}
+          />
+          <Filter
+            label="Status"
+            value={params.get('status')}
+            onChange={(v) => set('status', v)}
+            options={['reported', 'triaged', 'scheduled', 'resolved'].map((s) => [s, s])}
+          />
+          <Filter
+            label="Priority"
+            value={params.get('priority')}
+            onChange={(v) => set('priority', v)}
+            options={['urgent', 'high', 'medium', 'low'].map((p) => [p, p])}
+          />
           {user.role === 'manager' && (
-            <Filter label="Contractor" value={params.get('contractor_id')}
+            <Filter
+              label="Contractor"
+              value={params.get('contractor_id')}
               onChange={(v) => set('contractor_id', v)}
-              options={contractors.map((c) => [c.id, c.name])} />
+              options={contractors.map((c) => [c.id, c.name])}
+            />
           )}
           <label style={{ marginBottom: 0 }}>
             <span>Sort</span>
-            <select value={params.get('sort') ?? 'created_at'} onChange={(e) => set('sort', e.target.value)}>
+            <select value={params.get('sort') ?? 'created_at'} onChange={(e) => set('sort', e.target.value)} style={{ width: 'auto', minWidth: '10rem' }}>
               {SORTS.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
           </label>
-          {[...params.keys()].length > 0 && (
-            <button onClick={() => { setParams(new URLSearchParams()); setTyped('') }}>
-              Clear
-            </button>
-          )}
         </div>
       </div>
 
-      {error && <p className="error">{error}</p>}
-
-      <p className="muted">
-        {loading ? 'Loading…' : `${page.total} matching request${page.total === 1 ? '' : 's'}`}
-      </p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Unit</th>
-            <th>Description</th>
-            <th>Priority</th>
-            <th>Status</th>
-            <th>Contractors</th>
-            <th>Raised</th>
-          </tr>
-        </thead>
-        <tbody>
-          {page.items.map((request) => (
-            <tr key={request.id}>
-              <td>{unitNumber(units, request.unit_id)}</td>
-              <td><Link to={`/requests/${request.id}`}>{request.description}</Link></td>
-              <td><span className={`tag ${request.priority}`}>{request.priority}</span></td>
-              <td><span className={`tag ${request.status}`}>{request.status}</span></td>
-              <td>
-                {request.contractors.length
-                  ? request.contractors.map((c) => c.name).join(', ')
-                  : <span className="muted">nobody yet</span>}
-              </td>
-              <td className="muted">{dateTime(request.created_at)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {!loading && page.items.length === 0 && (
-        <p className="muted">Nothing matches those filters.</p>
-      )}
-
-      {page.total > PAGE_SIZE && (
-        <div className="row" style={{ marginTop: '1rem', alignItems: 'center' }}>
-          <button disabled={current <= 1} onClick={() => goTo(current - 1)}>Previous</button>
-          <span className="muted">Page {current} of {lastPage}</span>
-          <button disabled={current >= lastPage} onClick={() => goTo(current + 1)}>Next</button>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '0.85rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            Showing {page.items.length} of {page.total} requests
+          </span>
+          {loading && <span className="muted" style={{ fontSize: '0.8rem' }}>Updating…</span>}
         </div>
-      )}
+
+        {page.items.length === 0 ? (
+          <div style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+            <p className="muted" style={{ margin: 0, fontSize: '0.95rem' }}>
+              {loading ? 'Loading requests…' : 'No requests match your current filters.'}
+            </p>
+          </div>
+        ) : (
+          <div className="table-wrap" style={{ margin: 0, border: 'none', borderRadius: 0 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: '70px' }}>ID</th>
+                  <th style={{ width: '90px' }}>Unit</th>
+                  <th>Description</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Assigned</th>
+                  <th>Raised</th>
+                  <th style={{ width: '40px' }} />
+                </tr>
+              </thead>
+              <tbody>
+                {page.items.map((req) => (
+                  <tr key={req.id}>
+                    <td style={{ fontWeight: 600, color: 'var(--muted)' }}>#{req.id}</td>
+                    <td>
+                      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{req.unit_number}</span>
+                    </td>
+                    <td>
+                      <Link to={`/requests/${req.id}`} style={{ fontWeight: 600 }}>
+                        {req.description}
+                      </Link>
+                    </td>
+                    <td>
+                      <span className={`tag ${req.priority}`}>{req.priority}</span>
+                    </td>
+                    <td>
+                      <span className={`tag ${req.status}`}>{req.status}</span>
+                    </td>
+                    <td>
+                      {req.contractor_names.length === 0 ? (
+                        <span className="muted" style={{ fontSize: '0.8rem' }}>Unassigned</span>
+                      ) : (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--ink)' }}>
+                          {req.contractor_names.join(', ')}
+                        </span>
+                      )}
+                    </td>
+                    <td className="muted" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                      {dateTime(req.created_at)}
+                    </td>
+                    <td>
+                      <Link to={`/requests/${req.id}`} style={{ display: 'inline-flex', color: 'var(--muted)' }}>
+                        <ChevronRightIcon size={16} />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {lastPage > 1 && (
+          <div style={{ padding: '0.85rem 1.25rem', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button
+              disabled={current <= 1 || loading}
+              onClick={() => goTo(current - 1)}
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.825rem' }}
+            >
+              Previous
+            </button>
+            <span className="muted" style={{ fontSize: '0.825rem', fontWeight: 500 }}>
+              Page {current} of {lastPage}
+            </span>
+            <button
+              disabled={current >= lastPage || loading}
+              onClick={() => goTo(current + 1)}
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.825rem' }}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   )
 }
@@ -180,18 +258,12 @@ function Filter({ label, value, onChange, options }) {
   return (
     <label style={{ marginBottom: 0 }}>
       <span>{label}</span>
-      <select value={value ?? ''} onChange={(event) => onChange(event.target.value)}>
-        <option value="">Any</option>
-        {options.map(([optionValue, optionLabel]) => (
-          <option key={optionValue} value={optionValue}>{optionLabel}</option>
+      <select value={value ?? ''} onChange={(event) => onChange(event.target.value)} style={{ width: 'auto', minWidth: '8.5rem' }}>
+        <option value="">All</option>
+        {options.map(([optVal, optLabel]) => (
+          <option key={optVal} value={optVal}>{optLabel}</option>
         ))}
       </select>
     </label>
   )
-}
-
-function unitNumber(units, unitId) {
-  // A contractor sees only the units they have work on, so a request can arrive for a unit that
-  // is not in their list. The id is a worse label than the number but better than a blank cell.
-  return units.find((unit) => unit.id === unitId)?.unit_number ?? `#${unitId}`
 }
