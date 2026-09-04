@@ -158,7 +158,7 @@ export default function Requests({ user }) {
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '0.85rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '0.85rem 1.25rem', background: 'var(--surface-alt)', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
             Showing {page.items.length} of {page.total} requests
           </span>

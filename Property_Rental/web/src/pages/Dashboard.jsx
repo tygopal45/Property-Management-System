@@ -39,29 +39,29 @@ export default function Dashboard() {
           value={headline.open_requests}
           label="Open maintenance requests"
           icon={RequestIcon}
-          color="#2563eb"
-          bg="#eff6ff"
+          color="var(--accent)"
+          bg="var(--accent-light)"
         />
         <KpiCard
           value={headline.units_rent_overdue}
           label="Units with rent overdue this month"
           icon={AlertCircleIcon}
-          color="#dc2626"
-          bg="#fef2f2"
+          color="var(--bad)"
+          bg="var(--bad-light)"
         />
         <KpiCard
           value={headline.resolved_this_week}
           label="Requests resolved this week"
           icon={CheckCircleIcon}
-          color="#059669"
-          bg="#ecfdf5"
+          color="var(--good)"
+          bg="var(--good-light)"
         />
         <KpiCard
           value={money(headline.rent_collected_this_month)}
           label="Rent collected this month"
           icon={RentIcon}
-          color="#7c3aed"
-          bg="#f5f3ff"
+          color="var(--purple)"
+          bg="var(--purple-light)"
         />
       </div>
 
@@ -165,6 +165,8 @@ function KpiCard({ value, label, icon: Icon, color, bg }) {
           borderRadius: 'var(--radius-md)',
           background: bg,
           color: color,
+          border: '1px solid ' + color,
+          boxShadow: '0 0 12px ' + bg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

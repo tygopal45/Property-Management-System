@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { api } from '../api/client.js'
 import {
@@ -9,6 +9,8 @@ import {
   RentIcon,
   AlertIcon,
   LogoutIcon,
+  SunIcon,
+  MoonIcon,
 } from './Icons.jsx'
 
 /* The shell every signed-in screen sits in.
@@ -18,6 +20,27 @@ import {
  * but showing a manager-only link to a contractor would be an invitation to a 403. */
 
 export default function Layout({ user, alertCount, onSignedOut }) {
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('pms_theme') || 'dark'
+    }
+    return 'dark'
+  })
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme)
+    }
+  }, [theme])
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pms_theme', next)
+    }
+  }
+
   const links = user.role === 'manager'
     ? [
         { to: '/', label: 'Dashboard', end: true, icon: DashboardIcon },
@@ -65,6 +88,15 @@ export default function Layout({ user, alertCount, onSignedOut }) {
           })}
         </ul>
         <div className="who">
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'neon dark'} theme`}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <SunIcon size={17} /> : <MoonIcon size={17} />}
+          </button>
           <div className="user-chip">
             <div className="user-avatar">{initial}</div>
             <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{user.name}</span>

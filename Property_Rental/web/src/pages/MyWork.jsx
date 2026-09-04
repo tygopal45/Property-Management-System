@@ -42,7 +42,7 @@ export default function MyWork() {
             </div>
             <div className="label">Open Work Orders</div>
           </div>
-          <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: '#eff6ff', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent)', boxShadow: '0 0 10px var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <RequestIcon size={20} />
           </div>
         </div>
@@ -52,7 +52,7 @@ export default function MyWork() {
             <div className="value" style={{ color: 'var(--good)' }}>{done.length}</div>
             <div className="label">Resolved Jobs</div>
           </div>
-          <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: '#ecfdf5', color: 'var(--good)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: 'var(--good-light)', color: 'var(--good)', border: '1px solid var(--good)', boxShadow: '0 0 10px var(--good-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CheckCircleIcon size={20} />
           </div>
         </div>
@@ -62,14 +62,14 @@ export default function MyWork() {
             <div className="value" style={{ color: 'var(--ink)' }}>{unitCount}</div>
             <div className="label">Units Assigned</div>
           </div>
-          <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: 'var(--purple-light)', color: 'var(--purple)', border: '1px solid var(--purple)', boxShadow: '0 0 10px var(--purple-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <UnitIcon size={20} />
           </div>
         </div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '1.5rem' }}>
-        <div style={{ padding: '0.85rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ padding: '0.85rem 1.25rem', background: 'var(--surface-alt)', borderBottom: '1px solid var(--line)' }}>
           <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Active Work Orders ({open.length})</h3>
         </div>
         <Table rows={open} empty="Nothing open. You are all caught up!" />
@@ -77,7 +77,7 @@ export default function MyWork() {
 
       {done.length > 0 && (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '0.85rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid var(--line)' }}>
+          <div style={{ padding: '0.85rem 1.25rem', background: 'var(--surface-alt)', borderBottom: '1px solid var(--line)' }}>
             <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Completed Jobs ({done.length})</h3>
           </div>
           <Table rows={done} empty="" />

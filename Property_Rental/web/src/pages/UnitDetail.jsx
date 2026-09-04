@@ -87,8 +87,8 @@ export default function UnitDetail({ user, onChanged }) {
       )}
 
       {unit.archived_at && (
-        <div className="card" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
-          <p className="muted" style={{ margin: 0, color: '#92400e' }}>
+        <div className="card" style={{ background: 'var(--warn-light)', borderColor: 'var(--warn-border)' }}>
+          <p className="muted" style={{ margin: 0, color: 'var(--warn)' }}>
             Archived on {shortDate(unit.archived_at)}. The row is kept rather than deleted, so its
             payments and maintenance requests still point at something real — and no rent is owed
             for the archiving month or any month after it, which is what stops an empty flat

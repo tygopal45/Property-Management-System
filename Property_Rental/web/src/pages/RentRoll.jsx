@@ -222,7 +222,7 @@ export default function RentRoll({ onChanged }) {
 
       {/* Rent Roll Table */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '0.85rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '0.85rem 1.25rem', background: 'var(--surface-alt)', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, fontSize: '0.95rem' }}>
             Rent roll — {monthName(monthDate(month))}
           </h3>
@@ -293,7 +293,7 @@ export default function RentRoll({ onChanged }) {
 function BulkReport({ report, onClose }) {
   const { summary } = report
   return (
-    <div className="card" style={{ border: '2px solid var(--accent)', marginBottom: '1.5rem' }}>
+    <div className="card" style={{ border: '1px solid var(--accent)', boxShadow: '0 0 16px rgba(0, 242, 254, 0.25)', marginBottom: '1.5rem' }}>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, color: 'var(--accent)' }}>
           Recorded for {monthName(report.period_month)}
@@ -302,25 +302,25 @@ function BulkReport({ report, onClose }) {
       </div>
 
       <div className="grid" style={{ margin: '1rem 0' }}>
-        <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: 0, background: '#ecfdf5', borderColor: '#a7f3d0' }}>
+        <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: 0, background: 'var(--good-light)', borderColor: 'var(--good-border)' }}>
           <div className="figure">
             <div className="value" style={{ color: 'var(--good)', fontSize: '1.75rem' }}>{summary.matched}</div>
-            <div className="label" style={{ color: '#065f46' }}>matched</div>
+            <div className="label" style={{ color: 'var(--good)' }}>matched</div>
           </div>
         </div>
-        <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: 0, background: '#fffbeb', borderColor: '#fde68a' }}>
+        <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: 0, background: 'var(--warn-light)', borderColor: 'var(--warn-border)' }}>
           <div className="figure">
             <div className="value" style={{ color: 'var(--warn)', fontSize: '1.75rem' }}>{summary.underpaid}</div>
-            <div className="label" style={{ color: '#92400e' }}>underpaid</div>
+            <div className="label" style={{ color: 'var(--warn)' }}>underpaid</div>
           </div>
         </div>
-        <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: 0, background: '#eff6ff', borderColor: '#bfdbfe' }}>
+        <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: 0, background: 'var(--accent-light)', borderColor: 'var(--accent-border)' }}>
           <div className="figure">
             <div className="value" style={{ color: 'var(--accent)', fontSize: '1.75rem' }}>{summary.overpaid}</div>
-            <div className="label" style={{ color: '#1e40af' }}>overpaid</div>
+            <div className="label" style={{ color: 'var(--accent)' }}>overpaid</div>
           </div>
         </div>
-        <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: 0, background: '#f1f5f9', borderColor: '#cbd5e1' }}>
+        <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: 0, background: 'var(--surface-alt)', borderColor: 'var(--line)' }}>
           <div className="figure">
             <div className="value" style={{ color: 'var(--muted)', fontSize: '1.75rem' }}>{summary.unmatched}</div>
             <div className="label">unmatched</div>

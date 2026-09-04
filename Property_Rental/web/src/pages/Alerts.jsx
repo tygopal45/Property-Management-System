@@ -65,33 +65,35 @@ export default function Alerts({ onChanged }) {
       )}
 
       {data.count === 0 ? (
-        <div className="card" style={{ padding: '3rem 2rem', textAlign: 'center', background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+        <div className="card" style={{ padding: '3rem 2rem', textAlign: 'center', background: 'var(--good-light)', borderColor: 'var(--good-border)', boxShadow: '0 0 20px rgba(0, 245, 160, 0.15)' }}>
           <div
             style={{
               width: '52px',
               height: '52px',
               borderRadius: '50%',
-              background: '#dcfce7',
+              background: 'var(--good-light)',
+              border: '1px solid var(--good-border)',
               color: 'var(--good)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: '1rem',
+              boxShadow: '0 0 16px rgba(0, 245, 160, 0.35)',
             }}
           >
             <CheckCircleIcon size={30} />
           </div>
-          <h3 style={{ margin: '0 0 0.5rem', color: '#166534', fontSize: '1.2rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', color: 'var(--good)', fontSize: '1.2rem', textShadow: '0 0 10px rgba(0, 245, 160, 0.3)' }}>
             All clear! No overdue rent
           </h3>
-          <p className="muted" style={{ margin: 0, maxWidth: '32rem', marginLeft: 'auto', marginRight: 'auto', color: '#15803d' }}>
+          <p className="muted" style={{ margin: 0, maxWidth: '32rem', marginLeft: 'auto', marginRight: 'auto', color: 'var(--text-secondary)' }}>
             Nothing is outstanding past its grace period. A unit month appears here once it is unpaid or
             part-paid and the grace period for that month has passed.
           </p>
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '0.85rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid var(--line)' }}>
+          <div style={{ padding: '0.85rem 1.25rem', background: 'var(--surface-alt)', borderBottom: '1px solid var(--line)' }}>
             <p className="muted" style={{ margin: 0, fontSize: '0.825rem' }}>
               One row per unit and month. Dismissing a row hides that month only — if rent is short next month, a new alert appears automatically.
             </p>

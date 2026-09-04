@@ -35,7 +35,7 @@ export default function Login({ onSignedIn }) {
 
   return (
     <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-      <div className="card" style={{ width: '100%', maxWidth: '26rem', padding: '2.25rem', boxShadow: 'var(--shadow-lg)' }}>
+      <div className="card" style={{ width: '100%', maxWidth: '26rem', padding: '2.25rem', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--accent-border)' }}>
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div
             style={{
@@ -45,10 +45,10 @@ export default function Login({ onSignedIn }) {
               width: '48px',
               height: '48px',
               borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-              color: '#fff',
+              background: 'linear-gradient(135deg, var(--accent), var(--purple))',
+              color: '#030712',
               marginBottom: '1rem',
-              boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)',
+              boxShadow: '0 0 20px rgba(0, 242, 254, 0.45)',
             }}
           >
             <BuildingIcon size={26} />
