@@ -417,24 +417,20 @@ weaker evidence. Nine screens that look considered make a better argument for th
 
 I would still take the cut in a heartbeat if a requirement had been shaky. None was.
 
-**What it cost, and this is the part worth reading.** 2,393 lines added and 727 removed across
-thirteen files, in the one layer of this codebase with no behavioural test coverage — and it broke
-something. The
-rewrite of the requests table read `req.contractor_names` and `req.unit_number` off the API
-response. Neither field exists; the API returns `contractors` and `unit_id`, and the code being
+**What it cost.** 2,393 lines added and 727 removed across thirteen files, in the one layer of this
+codebase with no behavioural test coverage — and it broke a screen.
+
+The rewrite of the requests table read `req.contractor_names` and `req.unit_number` off the API
+response. Neither field exists: the API returns `contractors` and `unit_id`, and the code being
 replaced had used them correctly. `req.contractor_names.length` throws on the first row, so
-`/requests` rendered a blank screen for any manager with data.
+`/requests` was blank for any manager with data. Fixed in `26fc871`, but it reached `main` first.
 
-**`npm run check` passed the whole time**, and it was right to. It renders that page with nothing
-fetched, so it gets the loading state and asserts the six filter controls are present — which they
-were. The line that threw lives inside `page.items.map(...)`, and no check has ever run it. Fixed in
-`26fc871`, but it reached `main` first.
+`npm run check` passed throughout, and it was right to — it renders that page with nothing fetched,
+so it never draws a row and never runs the line that throws.
 
-So the honest cost is not the three hours. It is that a cosmetic pass over a well-tested application
-was able to break a screen, because "renders without throwing, given no data" is a weaker claim than
-it reads as, and I had been leaning on it as though it were the stronger one. `SUBMISSION.md`'s last
-section had predicted exactly this failure before it happened, which is satisfying to have written
-down and not at all satisfying to have then demonstrated.
+So the real cost is not the three hours. It is that a cosmetic pass could break a well-tested
+application, because passing that check means "this screen renders when empty", not "this screen
+works", and I had been treating it as the second.
 
 ---
 

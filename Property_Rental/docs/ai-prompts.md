@@ -493,19 +493,14 @@ returns `contractors` and `unit_id`, and the code being replaced had used them c
 was a working call site rewritten into a broken one. `req.contractor_names.length` throws on the
 first row, so `/requests` was a blank screen for any manager with data.
 
-**Why I did not catch it, which is the actual content of this entry.** I ran `npm run check` and it
-passed, and I took that as the screens being fine. It renders every page with nothing fetched, so it
-gets the loading state — the six filter controls it asserts on were all present. The line that threw
-is inside `page.items.map(...)` and no check has ever executed it. So the check was not wrong and it
-was not weak; it answers "does this component render given no data", and I had been reading its
-green tick as an answer to "does this screen work". Those are different questions and I had stopped
-noticing.
+**Why I did not catch it.** I ran `npm run check`, it passed, and I took that as the screens being
+fine. It renders every page with nothing fetched, so it gets the loading state — the six filter
+controls it asserts on were all present. The line that throws is inside `page.items.map(...)` and no
+check has ever drawn a row, so nothing ever ran it.
 
-**The lesson, and it is the one I would most want to be asked about.** Everywhere else in this build
-I verified AI output by running something that could fail — the concurrency probe written to be
-provably breakable, the image booted against an empty database, both bundle variants compiled and
-read. Here I ran something that *could not* fail for this class of bug and treated the pass as
-coverage. The failure was not the model inventing two field names; models do that, and it is why the
-output gets checked. The failure was mine, in accepting a green check that was answering a different
-question. `decisions.md` Decision 12 records the same event as a design decision; this is the same
-event as a process one.
+**The lesson.** Everywhere else in this build I checked AI output by running something that could
+fail: a concurrency probe written to be provably breakable, the image booted against an empty
+database, both bundle variants compiled and read. Here I ran something that could not fail for this
+kind of bug and treated the pass as coverage. The model inventing two field names is ordinary and is
+why output gets checked; the mistake was mine, in accepting a green tick that was answering a
+different question. `decisions.md` Decision 12 records the same event as a design decision.

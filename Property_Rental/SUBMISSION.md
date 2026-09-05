@@ -301,31 +301,24 @@ the three places the plan bent and the one ordering mistake I made and had to co
 
 ## What would you do next, with another 12 hours?
 
-**First, and it is half an hour: render one populated row.** Every check in `npm run check` renders
-its screen with nothing fetched, so it exercises loading states and never a table body. That gap let
-a `TypeError` reach `main` on the last day — the section below has the whole account. Passing each
-list screen one stubbed row would have caught it in seconds, and it is the cheapest item on this
-list by an order of magnitude. Everything below is a bigger idea; this is the one that would have
-paid for itself already.
-
-**Second, vacancy periods** — about four hours, and it is the limitation below rather than a feature.
+**First, vacancy periods** — about four hours, and it is the limitation below rather than a feature.
 A `unit_vacancies(unit_id, from_month, to_month)` table, and `expected_rent` returning zero for a
 month inside one. That turns "dismiss the alert every month for a flat nobody lives in" into a fact
 the system knows. It is the only change on this list that fixes something a real manager would hit in
 the first week.
 
-**Third, a rate limit on login** — about an hour. There is none, and `docs/decisions.md` names it as
+**Second, a rate limit on login** — about an hour. There is none, and `docs/decisions.md` names it as
 deliberate for a demo. It is the shortest distance between this codebase and one I would let real
 tenants near. A fixed window per email and per IP, in the database rather than in memory, because
 the free tier runs one process today and that is not a thing to design around.
 
-**Fourth, the concurrency tests I did not write** — about three hours. 286 tests and 51 requirement clauses cover
+**Third, the concurrency tests I did not write** — about three hours. 286 tests and 51 requirement clauses cover
 behaviour well, but the concurrency probe covers exactly two races because those are the two I found.
 I would put the same treatment on the bulk endpoint, which is the largest single transaction in the
 app: two managers pasting the same month at once is a plausible Monday morning and I have not proved
 what it does.
 
-**Fifth, pagination on the alerts list and the rent roll** — about two hours. Both return the whole
+**Fourth, pagination on the alerts list and the rent roll** — about two hours. Both return the whole
 portfolio in one response. `docs/schema.md` §12 says the alerts endpoint is the first thing to
 degrade at scale, and it is also the query the navigation badge runs on every page load. It is fine
 at a few dozen units and the first thing I would fix if the number grew.
@@ -335,39 +328,30 @@ ten requirements with their edges tested than twelve with none.
 
 ## What are you least happy with in this codebase, and why?
 
-The browser app — not because it is unfinished now, but because of how late it was finished. Rules
-before routes, routes before screens was the right order and I would use it again, and the cost is
-that for most of this build the only way to demonstrate anything was the generated `/docs` page. Had
-Session 4 gone badly, the least finished part would have been the only part anyone ever saw. It
-worked out; it was still the plan's biggest bet and it was still a bet.
+**First: the screens have no tests for behaviour.** `npm run check` renders every screen and catches
+one that crashes outright, but nothing clicks a button. Every business rule is tested on the server,
+so the untested part is the wiring between the two — and wiring is most of what a screen is.
 
-Concretely, the screens have no automated coverage of *behaviour*. `npm run check` renders all of
-them in node and catches a component that throws, but nothing clicks a button. Every rule is tested
-on the server, so what is untested is the wiring — and wiring is exactly what a screen is.
+That is not a theoretical worry. On the last day a styling change rewrote the requests table and read
+two field names the API does not return. The page broke for any manager with data. `npm run check`
+passed the whole time, because it renders that screen with nothing loaded — the broken line only runs
+when there is a row to draw, and no check has ever drawn one. I found it by opening the page, and
+fixed it in `26fc871`.
 
-**I know that is the real gap rather than a theoretical one, because it caught me — in this
-repository, on the last day.** The styling pass rewrote the requests table and, in the rewrite, read
-two fields off the API response that the API does not return: `req.contractor_names` and
-`req.unit_number`. The correct names are `contractors` and `unit_id`, and the code being replaced
-had used them correctly. `req.contractor_names.length` throws on the first row it renders, so
-`/requests` was a blank screen for a manager with any data at all.
+The lesson is short enough to say in one sentence: that check proves a screen renders when empty, not
+that it works, and I had been reading it as the second.
 
-`npm run check` passed the whole time. It renders that page with nothing fetched, so it gets the
-loading state, and the check asserts that the six filter controls are present — which they were. The
-line that threw is inside `page.items.map(...)`, and no check has ever executed it. It reached
-`main` and I fixed it in `26fc871`.
+**Second: the browser app was built last, and that was a bet.** Rules, then endpoints, then screens
+was the right order and I would use it again — by the time I wrote the screens every endpoint was
+settled, so none of them needed rework. The cost is that for most of the build the only thing I could
+demonstrate was the generated `/docs` page. It worked out, but if the last session had gone badly,
+the least finished part of the app would have been the only part anyone saw.
 
-The honest reading is not that the check is bad — it is doing what it was built to do, and it has
-caught real breakage before. It is that "renders without throwing, given no data" and "works" are
-different claims, and I had been quietly treating the first as evidence for the second. A single
-test that renders one populated row would have caught this in seconds — which is why it is the first
-item in the section above, and the only one there I would call overdue rather than merely desirable.
+**Third, on the design itself: a unit cannot be marked empty.** Rent is expected every month from the
+unit's first rate until it is archived, so a flat standing empty between tenants keeps raising
+overdue alerts for rent nobody owes.
 
-On the design itself, the thing I am least happy with is that a unit cannot be marked empty. Rent is
-expected every month from the unit's first rate until it is archived, so a flat standing empty between
-tenants keeps raising overdue alerts for rent nobody owes.
-
-There is no clean workaround either. Archiving stops the rent clock, but restoring the unit when it is
-re-let makes all those months owed again, so the best a manager can do is dismiss the alerts for the
-empty months one at a time. Doing it properly needs vacancy periods with dates, which is a tenancy
-model no requirement asks for. `docs/schema.md` §11 sets out the whole trade-off.
+There is no clean workaround. Archiving stops the rent clock, but restoring the unit when it is re-let
+makes all those months owed again — so the best a manager can do is dismiss the alerts one month at a
+time. Doing it properly needs vacancy periods with dates, which is a tenancy model no requirement asks
+for. `docs/schema.md` §11 sets out the trade-off.
