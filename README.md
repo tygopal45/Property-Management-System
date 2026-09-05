@@ -9,12 +9,34 @@ Managers see the whole portfolio; maintenance contractors see only the requests 
 that boundary is enforced on the server rather than hidden in the interface. Rent that goes unmatched
 past its grace period raises an alert that comes back every month it stays unpaid.
 
-Built with React and FastAPI on MySQL. The project lives in [`Property_Rental/`](Property_Rental/);
-the design and the reasoning behind it are in [`Property_Rental/docs/`](Property_Rental/docs/).
+## Live
 
-**In progress.** Seven of the ten goals are built and tested: accounts and roles, units with rent
-history and payments, maintenance requests, the lifecycle and its rules, contractor assignment, the
-searchable request list, and the timeline that cannot be rewritten. The bulk rent tools, the dashboard
-and the rent alerts are designed and not yet written, and the browser app is still only a sign-in page
-and a units table. [`Property_Rental/SUBMISSION.md`](Property_Rental/SUBMISSION.md) has the
-goal-by-goal state and how to run it locally.
+- **The application:** https://property-management-system-eight-rust.vercel.app
+- **The API, and a complete copy of the app on its own:** https://property-management-system-6.onrender.com
+- **Interactive API reference:** https://property-management-system-6.onrender.com/docs
+
+| Role | Email | Password |
+|------|-------|----------|
+| Property manager | priya@example.com | manager123 |
+| Maintenance contractor | tomas@example.com | worker123 |
+
+**The first request after a quiet spell is slow — measured at about 42 seconds.** The API is on a
+free tier that sleeps when idle. Every request after it wakes is well under a second. That is the
+free tier doing what free tiers do, not the app being broken.
+
+## Where things are
+
+The project lives in [`Property_Rental/`](Property_Rental/).
+
+**Start with [`Property_Rental/SUBMISSION.md`](Property_Rental/SUBMISSION.md)** — it has the
+goal-by-goal state, the stack and why each part of it, what a security review found, and how to run
+the whole thing locally.
+
+The reasoning behind the design is in [`Property_Rental/docs/`](Property_Rental/docs/): the database
+design, the decisions and what was rejected, the architecture, the session plan against what it
+actually took, and the AI prompt log.
+
+**Status: complete.** All ten requirements are built, tested and deployed. 286 tests cover the rules,
+and a separate audit walks all 51 clauses of the ten requirements over HTTP against a real database.
+
+Built with React 18 and FastAPI on PostgreSQL 17.
