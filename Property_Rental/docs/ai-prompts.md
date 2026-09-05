@@ -1,10 +1,11 @@
 # AI prompts
 
 I used Claude Code throughout, as a pair rather than a code generator: I set the direction and made
-the calls, and I pushed back when the output was wrong. **Two of the eight entries below are AI
-answers I rejected**, and in each case the pushback is why the design is what it is. The last four
-are the opposite case — AI finding bugs that AI had written, and that I had read past. Entry 7 also
-records two occasions where the AI was confidently wrong and running the code was what settled it.
+the calls, and I pushed back when the output was wrong. **Entries 2 and 4 are AI answers I
+rejected**, and in each case the pushback is why the design is what it is. Entries 5 to 8 are the
+opposite case — AI finding bugs that AI had written, and that I had read past. Entry 7 also records
+two occasions where the AI was confidently wrong and running the code was what settled it, and
+entry 11 is the one where I accepted output too easily and it reached `main`.
 
 Prompts are reproduced as I typed them, typos included — a cleaned-up prompt is a different prompt.
 
@@ -408,8 +409,6 @@ than verifying it the way someone else would receive it.
 
 ---
 
----
-
 ## 10. Splitting the deploy across Vercel and Render — **the cheap option would have broken login**
 
 **Prompt.** "clear diff backend frontend files with separate env files so that i can deploy backend
@@ -452,6 +451,61 @@ The checks still passed — the substituted value happens to be the right one �
 kind of pass worth distrusting. Fixed by defining it explicitly in the check script rather than
 leaving the bundler to guess.
 
+**And one thing this entry got wrong, which only showed up on the live site.** The rewrite
+destination in `web/vercel.json` was written as a deliberately invalid placeholder —
+`REPLACE-WITH-YOUR-RENDER-HOST.onrender.com` — on the reasoning that a forgotten step should fail
+loudly rather than silently point at the wrong service. Good instinct, wrong assumption about *when*
+it fails. Vercel built and deployed the project against that placeholder before the real host was
+pushed, so the deployment succeeded, the site was live, and the page rendered perfectly. Everything
+behind `/api` returned 404.
+
+A logged-out landing page looks identical whether the API is reachable or not, so "the deploy went
+green and the site loads" was worth nothing here. I caught it by requesting `/api/health` *through*
+the Vercel URL rather than by looking at the page, pushed the corrected host, and re-checked the same
+endpoint after the redeploy rather than assuming the push had taken.
+
 **The lesson.** The request was a packaging question. Answering only the packaging question would
 have produced a working build and a broken login. The useful move was to take the goal seriously and
-the proposed shape of it lightly.
+the proposed shape of it lightly — and then, at the end, to check the claim the deployment actually
+makes rather than the one that is easy to look at.
+
+---
+
+## 11. The final styling pass — **where I accepted output too easily**
+
+**Prompt.** This one was a separate session and I do not have the transcript, so unlike every other
+entry here I cannot reproduce what I typed. The substance, from the commits it produced, was: take
+the nine working screens and give them a proper design system — a dark theme with a light one behind
+a toggle, consistent spacing and colour, icons in the navigation and the tables — without changing
+what any screen does. I am flagging the gap rather than reconstructing a plausible-looking quote,
+because a cleaned-up prompt is a different prompt and an invented one is worse than an absent one.
+
+**What I got.** Three commits and it did the job: colour and spacing as CSS custom properties on
+`:root`, a `[data-theme="light"]` block overriding only the tokens, a toggle in `Layout.jsx` that
+persists to `localStorage`, and 21 inline SVG icon components rather than an icon library — which
+kept `package.json` at three runtime dependencies. It also put the theme read in an inline script in
+`index.html` so the choice applies before first paint instead of flashing the default and correcting
+it. That last one I would not have thought of and it is right.
+
+**What I corrected — after it had already reached `main`.** The rewrite of the requests table read
+`req.contractor_names` and `req.unit_number` off the API response. Neither field exists. The API
+returns `contractors` and `unit_id`, and the code being replaced had used them correctly, so this
+was a working call site rewritten into a broken one. `req.contractor_names.length` throws on the
+first row, so `/requests` was a blank screen for any manager with data.
+
+**Why I did not catch it, which is the actual content of this entry.** I ran `npm run check` and it
+passed, and I took that as the screens being fine. It renders every page with nothing fetched, so it
+gets the loading state — the six filter controls it asserts on were all present. The line that threw
+is inside `page.items.map(...)` and no check has ever executed it. So the check was not wrong and it
+was not weak; it answers "does this component render given no data", and I had been reading its
+green tick as an answer to "does this screen work". Those are different questions and I had stopped
+noticing.
+
+**The lesson, and it is the one I would most want to be asked about.** Everywhere else in this build
+I verified AI output by running something that could fail — the concurrency probe written to be
+provably breakable, the image booted against an empty database, both bundle variants compiled and
+read. Here I ran something that *could not* fail for this class of bug and treated the pass as
+coverage. The failure was not the model inventing two field names; models do that, and it is why the
+output gets checked. The failure was mine, in accepting a green check that was answering a different
+question. `decisions.md` Decision 12 records the same event as a design decision; this is the same
+event as a process one.
