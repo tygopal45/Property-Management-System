@@ -3,12 +3,15 @@
 > **Status:** written while designing, before the code existed. These are the calls I made and the
 > reasons for them.
 >
-> **All ten now have working code behind them.** Decision 10 has the test I would run first, Decision
-> 6's rank is in a real `ORDER BY`, and Decisions 1, 2 and 7 — which were commitments the rent code
-> still had to keep — are now `services/rent.py` and `services/alerts.py` with tests written from the
-> requirement sentences. Decision 9 is the one still partly open: the frontend is a session away.
+> **All of them now have working code behind them.** Decision 10 has the test I would run first,
+> Decision 6's rank is in a real `ORDER BY`, and Decisions 1, 2 and 7 — which were commitments the
+> rent code still had to keep — are now `services/rent.py` and `services/alerts.py` with tests
+> written from the requirement sentences. Decision 9's screens are all built.
+>
+> Decisions 1 to 10 were written at design time. **Decisions 11 and 12 were added later**, when
+> deploying and then finishing the app raised questions the design session had not reached.
 
-Ten decisions, each as what I chose, what I rejected, and why.
+Twelve decisions, each as what I chose, what I rejected, and why.
 
 **Two of them I later reversed:** Decision 6, and Decision 10. Decision 10 is the one worth reading —
 it is a bug that would have chased tenants who had already paid.
@@ -130,9 +133,11 @@ syntax anywhere.
 **Rejected.** Using MySQL freely, on the grounds that MySQL is the database I chose.
 
 **Why.** Free managed *MySQL* is harder to find than free managed Postgres. Most of the platforms I
-looked at offer Postgres on a free tier and either charge for MySQL or do not offer it at all. I have
-not deployed yet, so I am not going to state what any particular vendor's free tier includes today —
-that changes, and being confidently wrong about it is worse than being vague.
+looked at offer Postgres on a free tier and either charge for MySQL or do not offer it at all. I am
+writing this before deploying, so I am not going to state what any particular vendor's free tier
+includes today — that changes, and being confidently wrong about it is worse than being vague.
+*(Filled in afterwards: it was Render, it offered free Postgres and no MySQL at all, and this
+paragraph turned out to be the whole reason the migration was cheap.)*
 
 What matters is the risk, which is real: deployment is last-day work, and the way this fails is
 discovering on the final afternoon that nothing free will host the database. Keeping the SQL portable
@@ -352,6 +357,8 @@ is that reading a design does not test it. Pick a scenario and follow it through
 and the rent roll both join to `unit_rents`. Eight tables instead of seven. Worth it to make corrupting
 history impossible rather than merely unlikely.
 
+---
+
 ## Decision 11 — The browser app is published on Vercel, but reaches the API through a rewrite
 
 **Chose.** The React app is deployed to Vercel *and* still served by the API process on Render. On
@@ -375,6 +382,14 @@ through Vercel returns a gateway error rather than a slow page. That is why the 
 serves the browser app: **the Render URL is a complete working application on its own** and is the
 fallback. Keeping it costs an npm build inside the Docker image and nothing at runtime.
 
+**Measured afterwards, and the news is better than the paragraph above expected.** Idle for
+seventeen minutes, the first request through Vercel took **42.5 seconds and returned 200** — the
+proxy waited out the cold start rather than giving up on it. So the gateway-error case is a risk I
+have not actually reproduced. I have kept the fallback anyway: one measurement is not a
+distribution, and the thing it protects against costs nothing to keep. Warm, the same request takes
+**0.54 s through Vercel against 0.79 s straight to Render** — the extra hop is not a cost at steady
+state, because Vercel's edge is nearer the browser than Oregon is.
+
 **What it did not cost.** No application code decides this. Every call already went through one
 helper, so the whole change is a `BASE` constant in `web/src/api/client.js` that is empty in every
 environment we ship — the relative path is correct behind the Vite dev proxy, on Render, and behind
@@ -383,9 +398,49 @@ origin, and `web/.env.example` says plainly why it should be left unset.
 
 ---
 
+## Decision 12 — Spend the last session on how it looks, after everything worked
+
+**Chose.** With all ten requirements built, tested and deployed, spend a final session on a design
+system: colour and spacing as CSS custom properties in one file, a dark and a light theme with a
+toggle, and inline SVG icons through the navigation and the tables.
+
+**Rejected.** Stopping at the plain functional styling. `plan.md`'s cut list had explicitly reserved
+the right to: *"Styling stops. Semantic HTML with default browser styles. The brief scores judgement
+and working software; it never mentions how it looks."*
+
+**Why.** That cut-list entry was written as insurance against running out of time, and it was
+third in the drop order — behind the dashboard chart and the bulk paste box, both of which had
+landed. Nothing above it had been taken, so the condition it existed for never arrived. What
+remained was a straight question about the last three hours, and the brief answers it: *"The app is
+the evidence for that judgement, not the deliverable in itself."* Evidence a reviewer bounces off is
+weaker evidence. Nine screens that look considered make a better argument for the same code.
+
+I would still take the cut in a heartbeat if a requirement had been shaky. None was.
+
+**What it cost, and this is the part worth reading.** 2,393 lines added and 727 removed across
+thirteen files, in the one layer of this codebase with no behavioural test coverage — and it broke
+something. The
+rewrite of the requests table read `req.contractor_names` and `req.unit_number` off the API
+response. Neither field exists; the API returns `contractors` and `unit_id`, and the code being
+replaced had used them correctly. `req.contractor_names.length` throws on the first row, so
+`/requests` rendered a blank screen for any manager with data.
+
+**`npm run check` passed the whole time**, and it was right to. It renders that page with nothing
+fetched, so it gets the loading state and asserts the six filter controls are present — which they
+were. The line that threw lives inside `page.items.map(...)`, and no check has ever run it. Fixed in
+`26fc871`, but it reached `main` first.
+
+So the honest cost is not the three hours. It is that a cosmetic pass over a well-tested application
+was able to break a screen, because "renders without throwing, given no data" is a weaker claim than
+it reads as, and I had been leaning on it as though it were the stronger one. `SUBMISSION.md`'s last
+section had predicted exactly this failure before it happened, which is satisfying to have written
+down and not at all satisfying to have then demonstrated.
+
+---
+
 ## Smaller readings of the brief
 
-The ten decisions above are the ones with architecture behind them. These are the places where the
+The twelve decisions above are the ones with architecture behind them. These are the places where the
 brief does not say, I had to pick, and someone could reasonably ask why. Recording them here means the
 answer is a decision rather than a shrug.
 

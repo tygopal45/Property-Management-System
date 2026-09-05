@@ -4,12 +4,13 @@
 > column is a real prediction rather than a number reverse-engineered from the outcome. The Actual
 > column and the "what I cut" section are filled in as each session ends.
 >
-> **Where it stands:** Sessions 0 to 4 are done. All ten requirements have working, tested code and
-> a screen behind them: the shell and navigation, the dashboard, the request list and detail, the
-> rent roll with its bulk paste, the alerts area, and the unit forms. The database moved from MySQL
-> to Postgres so that the whole thing fits one free host — see Session 4 below. What is left needs
-> accounts rather than code: creating the Render service from the blueprint, and recording the live
-> URL.
+> **Where it stands: finished and deployed.** All ten requirements have working, tested code and a
+> screen behind them: the shell and navigation, the dashboard, the request list and detail, the rent
+> roll with its bulk paste, the alerts area, and the unit forms. The database moved from MySQL to
+> Postgres so that the API and its database fit one free host — see Session 4 below.
+>
+> **I planned five sessions and it took six.** Session 5 was not in this plan and is written up at
+> the end, with what it cost and why the plan did not see it coming.
 
 ## How I split the work into sessions
 
@@ -25,13 +26,15 @@ hit the number.
 | 3 | Money and alerts — **done** | Rent payments, bulk endpoint + the four-way report, CSV rent roll, alerts + dismissal + the count the badge reads, the dashboard's four headline numbers, the by-status and by-contractor breakdowns, and the eight-week chart. All of it API-side and tested; the screens that display it are Session 4 | 7, 8, 10 |
 | 4 | Frontend — **done** | The whole React frontend, deploy, seed production, finish docs. Landed: the shell and navigation with its alert badge, the dashboard, the request list and detail, the rent roll with bulk paste and CSV, the alerts area, the unit list, forms and detail — plus the deployment proved against a container from an empty database, and the move to Postgres | — |
 
-**Where this actually stands.** All five sessions are done and 10.75 hours are spent against a 13
-hour plan.
+**Where this actually stands.** All five planned sessions are done, plus an unplanned sixth, and
+13.75 hours are spent against a 13 hour plan.
 
-The balance shifted three times since I first wrote this paragraph. The risk stopped being that the
+The balance shifted four times since I first wrote this paragraph. The risk stopped being that the
 rules would not get built — they are built and tested — and then it stopped being the deployment,
-which I brought forward rather than leaving it last. The last shift was the one I had not planned
-for at all: the *database* moved, because the hosting choice made MySQL the expensive option.
+which I brought forward rather than leaving it last. The third shift was one I had not planned for
+at all: the *database* moved, because the hosting choice made MySQL the expensive option. The
+fourth was that deployment, which I had already de-risked once by bringing it forward, still took a
+session of its own — see Session 5.
 
 **Nothing was cut.** The cut list at the bottom was decided in advance and never needed, which is
 the outcome I wanted from writing it early — every item on it stayed available right up to the end,
@@ -97,8 +100,9 @@ point of writing it down early.
 | 1 — scaffold, auth, units, seed | 3.0 h | **1.25 h** | Came in well under the estimate. See below |
 | 2 — requests, lifecycle, history, list | 3.0 h | **1.0 h** | Same effect as Session 1 |
 | 3 — rent, alerts, dashboard | 3.0 h | **1.5 h** | Ran under, but see the note below |
-| 4 — frontend, deploy, docs | 3.0 h | **3.5 h** | The only session to run over. Eight screens, the deploy proved against a container, and an unplanned database migration |
-| **Total** | **13.0 h** | **10.75 h** | |
+| 4 — frontend, deploy, docs | 3.0 h | **3.5 h** | Ran over. Nine screens, the deploy proved against a container, and an unplanned database migration |
+| 5 — *not planned* | — | **3.0 h** | Getting it actually hosted on Render and Vercel, then a pass over the styling. See below |
+| **Total** | **13.0 h** | **13.75 h** | |
 
 I would rather explain the Session 0 overrun than hide it. I estimated one hour and took three and a
 half.
@@ -128,9 +132,16 @@ deployment and a database migration — none of which the schema had anything to
 payback was real but it was specific, and it ran out exactly where the design stopped.
 
 What that says about the original estimate is that I put the hours in the wrong column rather than
-getting the total wrong. Thirteen hours planned and 10.75 spent — close on the total, and nothing
-like it in shape. I budgeted one hour for thinking and three for each build; it came out the other
-way round, and the only session that overran is the one the design session could not help with.
+getting the total wrong. Thirteen hours planned and 13.75 spent — close on the total, and nothing
+like it in shape.
+
+**Split the work by whether the design session had anything to say about it and the whole variance
+falls out.** The half it covered — the schema, the rules, every endpoint — was planned at 10 hours
+and took **7.25**. The half it did not — screens, hosting, styling — was planned at 3 and took
+**6.5**. I budgeted one hour for thinking and three for each build session; it came out the other
+way round, and *every* session that overran is on the same side of that line. A schema review has
+nothing to say about a Render environment variable or a CSS custom property, and it turns out that
+was most of what was left.
 
 The remaining estimates are guesses. Where I expect them to be wrong, written down before the fact so
 the comparison afterwards is honest:
@@ -170,8 +181,9 @@ once and I did not notice until I got there.
 So the order became: build the shell, then deploy, then keep building. It cost about an hour and it
 bought certainty. I ran the image against an **empty** database rather than my working one, so
 Alembic had to migrate from nothing and the seed had to run for the first time, and then I pointed
-the requirement audit at the container and watched all 51 clauses pass against it. What is left needs
-accounts rather than code.
+the requirement audit at the container and watched all 51 clauses pass against it.
+
+What that bought, and what it did not, is the subject of Session 5.
 
 The other decision worth recording: I served the browser app from the API process rather than hosting
 it separately. That was not in the plan either. Two origins would have meant CORS with credentials
@@ -197,6 +209,45 @@ It was not entirely free, and the gap is the interesting part: portable SQL says
 one of my two concurrency fixes turned out to be redundant on Postgres while the other was not — a
 thing I only learned by writing a probe that could fail and watching which one did. `decisions.md`
 Decision 5 and `ai-prompts.md` entry 9 have the full account.
+
+## Session 5, which was not in this plan
+
+Three hours, and the plan does not have a row for it because I thought Session 4 had finished the
+job. Two things went in it: getting the application actually hosted, and a pass over how it looks.
+
+**Hosting cost more than "creating the service", and the reason is worth writing down.** Session 4
+proved the Docker image — built from a clean checkout, migrated an empty database, seeded itself,
+and passed all 51 requirement clauses inside the container. I read that as deployment being done
+bar the clicking. It was not, and the gap is precise: **proving the container proves the image, not
+the platform.** Every failure in Session 5 was on the platform side of that line.
+
+There were four of them, and all four have the same shape — a piece of configuration that
+`render.yaml` declares and that I did not use, because I created the service by hand from *New →
+Web Service* rather than from the blueprint. No `DATABASE_URL`, so Alembic dialled `127.0.0.1` and
+got connection refused. No `JWT_SECRET`, so the app refused to boot — correctly, and loudly, which
+is the whole point of it having no default. Then the same secret typed as `JWT`, which produces a
+byte-identical error and is invisible until you read the key name character by character. Then the
+Dockerfile path, because the app lives one directory down.
+
+Two paragraphs above, this document calls deployment "the classic way to lose two hours to something
+that is not programming", and then records me moving it earlier to defuse exactly that. It went off
+anyway, in the one form the earlier move could not cover — and the file that would have prevented
+all four was sitting in the repository the whole time, written for this. I have left `render.yaml`
+as the documented path in `SUBMISSION.md` because it *is* the right path. I just did not take it.
+
+**Then the Vercel half, and one failure I would have shipped.** `web/vercel.json` rewrites `/api/*`
+to the Render host, and I had written the destination as a deliberately invalid placeholder so that
+forgetting the step would fail loudly. It did fail loudly — but the Vercel project had already built
+against the placeholder before I pushed the real host, so the site was live, the page rendered, and
+every API call behind it returned 404. A logged-out landing page looks identical either way. I found
+it because I fetched `/api/health` through the Vercel URL instead of trusting that a page which
+loaded meant a deployment that worked.
+
+**And the styling.** The cut list below reserved the right to stop at default browser styles, and
+nothing above it in the drop order had been taken, so the condition never arrived. `decisions.md`
+Decision 12 records the call and — more usefully — records that a purely cosmetic pass broke a
+screen and reached `main`, in the one layer of this codebase with no behavioural tests. That is the
+most interesting thing to come out of this session and it is not a flattering one.
 
 ## What I cut when I ran short
 

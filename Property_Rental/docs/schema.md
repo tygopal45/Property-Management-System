@@ -8,7 +8,11 @@
 >
 > **All eight tables now exist**, created by one Alembic migration from the models in `api/app/models/`.
 > The behaviour described in the derivation sections (§5.1, §5.2, §7, §8) is what the rent, alert and
-> request code has to do; §13 marks which of its tests are written and which are still specification.
+> request code has to do, and §13 confirms every one of its checks is now a written, passing test.
+>
+> **The engine changed after this was written**, from MySQL 8 to PostgreSQL 17 — Decision 5, planned
+> for in advance and cashed in when the host offered free Postgres and no free MySQL. It cost no SQL
+> and no column type; §4 opens with the mapping and §10 has the full account.
 
 ---
 
@@ -68,6 +72,32 @@ Two things a reviewer might look for and not find — a `rent_status` column on 
 ---
 
 ## 4. Table by table: columns and types
+
+> **A note on the type notation, added after the engine changed.** The types below are written in the
+> MySQL spelling this section was drafted in. **They are not what the migration says.** No table is
+> declared in engine-specific DDL anywhere in this repository — the models declare portable
+> SQLAlchemy types and each engine picks its own physical type. That is Decision 5 as it actually
+> exists in the code, and it is why moving to Postgres cost no SQL:
+>
+> | Written below | The model says | Postgres | SQLite (tests) |
+> |---|---|---|---|
+> | `INT` AUTO_INCREMENT | `Integer`, `primary_key=True` | `SERIAL` | `INTEGER` rowid |
+> | `VARCHAR(n)` | `String(n)` | `VARCHAR(n)` | `VARCHAR(n)` |
+> | `DATETIME` | `DateTime` | `TIMESTAMP WITHOUT TIME ZONE` | `DATETIME` |
+> | `DATE` | `Date` | `DATE` | `DATE` |
+> | `DECIMAL(10,2)` | `Numeric(10, 2)` | `NUMERIC(10,2)` | `NUMERIC(10,2)` |
+> | `TEXT` | `Text` | `TEXT` | `TEXT` |
+> | `ENUM('a','b')` | `Enum(Cls, name=…)` | a native `ENUM` type | `VARCHAR(n)` |
+>
+> That table is compiled output, not a guess: `CreateTable(User.__table__).compile(dialect=…)` for
+> each dialect prints exactly those types, and `role` on Postgres comes out as a column whose type is
+> the named enum `role`.
+>
+> The last row is the one with a consequence rather than a spelling difference, and §10 and Decision
+> 6 both turn on it: a native Postgres enum sorts by declaration order and a SQLite `VARCHAR` sorts
+> alphabetically. That is exactly why the priority sort goes through an explicit rank in the query
+> instead of trusting the column type — the same `ORDER BY` would be right on one engine and wrong
+> on another, and it would fail as a wrong order rather than as an error.
 
 Two rules apply everywhere.
 

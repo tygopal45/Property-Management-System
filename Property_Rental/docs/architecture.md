@@ -1,9 +1,10 @@
 # Architecture
 
 > **Status:** written at design time, before the code existed. **All ten requirements are now built to
-> it**, and every file named below exists. What is still outstanding is the browser half: `web/` is a
-> sign-in page and a units table, so six of its eight screens are missing and the Layout section marks
-> which.
+> it, deployed, and every file named below exists.** Three things changed after this was written and
+> are marked where they occur: the database moved from MySQL to Postgres, the browser app moved to
+> Vercel while deliberately keeping one origin, and a design system went in last — the only section
+> below that was not designed before it was built, which is *Decision 12* and shows.
 >
 > The database design is not here — it lives in [`schema.md`](schema.md).
 
@@ -78,43 +79,83 @@ end up on different domains, `SameSite=Lax` stops working and the cookie has to 
 `SameSite=None; Secure` with an explicit CORS allow-list and a CSRF token on state-changing requests.
 That is a real cost of this choice and it is worth knowing before deploy day rather than during it.
 
+### The presentation layer, added last
+
+This part was not designed up front — it was a pass over the finished screens, and `decisions.md`
+Decision 12 records why it was worth doing and what it cost. Three mechanics are worth naming here
+because they are the only places the browser app does anything structural:
+
+**The palette is custom properties, in one file.** `index.css` declares the whole design system on
+`:root` and redefines only the colour tokens under `[data-theme="light"]`. Nothing else in the app
+knows a colour; components reference `var(--ink)`, `var(--muted)` and so on. That is why switching
+theme is one attribute on the root element rather than a second stylesheet.
+
+**The theme is set before first paint.** A small inline script in `index.html` reads
+`localStorage.pms_theme` and stamps `data-theme` on the root element *before* React mounts. Doing it
+only in the `useEffect` in `Layout.jsx` would paint the default theme first and then correct it,
+which is a visible flash on every page load. It is the one piece of logic deliberately kept out of
+React. `Layout.jsx` still holds the toggle and writes the choice back, and every `window` and
+`document` access in it is guarded — because `npm run check` renders these components in node, where
+neither exists.
+
+**The icons are inline SVG components.** `components/Icons.jsx` is 21 small components rather than an
+icon font or a library. `web/package.json` has exactly three runtime dependencies — React, React DOM
+and the router — and adding a fourth for twenty-one glyphs was not a trade I wanted, particularly
+one that ships a whole font to render a handful of shapes.
+
 ## Layout
 
-The target tree. Lines marked **·** exist today; the rest are named so the shape is clear and are not
-yet written.
+The tree as built. Everything named here exists; the shape is the one this document predicted, and
+the only additions to it are noted.
 
 ```
 api/                    the FastAPI service
   app/
-  · main.py             app factory, CORS, router mounting, /api/health
-  · config.py           settings: DATABASE_URL, JWT_SECRET, GRACE_PERIOD_DAYS
-  · db.py               engine, SessionLocal, get_db
-  · deps.py             current_user, require_manager, contractor scoping
-  · security.py         bcrypt hashing, token minting and reading
-  · models/             all eight tables — user, unit, request, enums
-  · schemas/            auth, unit, request, rent
-  · routers/            auth, units, requests, rent, alerts, dashboard
-  · services/           units, rent, requests, lifecycle, events, bulk,
+    main.py             app factory, CORS, router mounting, /api/health,
+                        and the static mount that serves web/dist
+    config.py           settings: DATABASE_URL, JWT_SECRET, GRACE_PERIOD_DAYS
+    db.py               engine, SessionLocal, get_db
+    deps.py             current_user, require_manager, contractor scoping
+    security.py         bcrypt hashing, token minting and reading
+    models/             all eight tables — user, unit, request, enums
+    schemas/            auth, unit, request, rent
+    routers/            auth, units, requests, rent, alerts, dashboard,
+                        users — 29 endpoints, plus /api/health
+    services/           units, rent, requests, lifecycle, events, bulk,
                         alerts, dashboard
-  · alembic/versions/   one migration per schema step
-  · tests/              pytest — roles, auth, units, rent history, lifecycle,
-                        assignments, timeline, the request list, the rent rule,
-                        bulk rent, the rent roll, alerts, the dashboard
-  · seed.py             users, units, six months of rent history, 20 requests
+  alembic/versions/     one migration, creating all eight tables
+  tests/                pytest — 286 tests over roles, auth, units, rent
+                        history, lifecycle, assignments, timeline, the
+                        request list, the rent rule, bulk rent, the rent
+                        roll, alerts, the dashboard
+  checks/               requirements.py — all 51 clauses over HTTP
+                        concurrency.py — the two races no single thread reaches
+  seed.py               users, units, six months of rent history, 20 requests
                         with real timelines spread over eight weeks
 web/                    the React app
+  index.html            sets the theme before first paint — see below
   src/
-    · api/client.js     fetch wrapper, 401 handling, the one place a base URL is decided
-    · pages/            Login, Units, UnitDetail, Dashboard, Requests,
+    main.jsx            mount point
+    App.jsx             the router, and the manager/contractor split at "/"
+    api/client.js       fetch wrapper, 401 handling, the one place a base URL is decided
+    format.js           money, dates, month names — the only shared display logic
+    index.css           the whole design system, as custom properties
+    pages/              Login, Units, UnitDetail, Dashboard, Requests,
                         RequestDetail, RentRoll, Alerts, MyWork — all nine built
-    · components/       Layout — the shell, the navigation and the alert badge
-  · checks/render.jsx   renders every page in both roles without a browser
-  · vercel.json         static build, and the /api/* rewrite to the Render service
-  · .env.example        one optional variable, and why to leave it unset
-· docs/                 the five required documents
-· images/               er-diagram.png
-· docker-compose.yml    PostgreSQL 17 for local development
+    components/         Layout — the shell, navigation, alert badge, theme toggle
+                        Icons — 21 inline SVGs, so there is no icon dependency
+  checks/render.jsx     21 checks: every page in both roles, without a browser
+  vercel.json           static build, and the /api/* rewrite to the Render service
+  .env.example          one optional variable, and why to leave it unset
+docs/                   the five required documents
+images/                 er-diagram.png
+Dockerfile              Node builds web/dist, the Python image serves it
+docker-compose.yml      PostgreSQL 17 for local development
+SUBMISSION.md           the reviewer's entry point
 ```
+
+Two files sit one level up, at the repository root, because that is where their platforms look for
+them: `render.yaml`, which declares the web service and its database together, and `README.md`.
 
 ## Where each piece runs
 
@@ -123,12 +164,15 @@ documentation at `/docs`, and Vite's dev server on `localhost:5173` proxying `/a
 browser sees one origin and the login cookie travels with no CORS or `SameSite` argument in
 development.
 
-**Hosting: one Render service and one Render Postgres**, declared together in `render.yaml` at the
-repository root, so deploying is *New → Blueprint* with no connection string to copy. The API
-process serves the built browser app, so the Render URL alone is a complete, working application.
+**In production: two platforms, one origin.** The browser app is on **Vercel**
+(`property-management-system-eight-rust.vercel.app`); the API and its Postgres are on **Render**
+(`property-management-system-6.onrender.com`), declared together in `render.yaml` at the repository
+root so there is no connection string to copy. The API process also serves the built browser app, so
+the Render URL alone is a complete, working application rather than a bare JSON endpoint — that is
+the fallback when Vercel's proxy meets a sleeping instance.
 
-**The browser app is also published on Vercel**, and the way it reaches the API is the part worth
-reading. It does *not* call the Render host directly. `web/vercel.json` rewrites `/api/*` through to
+**How the browser app reaches the API is the part worth reading.** It does *not* call the Render host
+directly. `web/vercel.json` rewrites `/api/*` through to
 the Render service, so as far as the browser is concerned the API is part of the Vercel origin. That
 is not a detail of taste: calling Render directly would make the session cookie a **third-party**
 cookie, which Safari and Brave block outright and Firefox partitions — anyone on those browsers
@@ -139,6 +183,11 @@ The cost is one hop and one failure mode, both stated rather than discovered: th
 proxy step, and if Render's free instance is asleep the first request may exceed Vercel's proxy
 timeout and return a gateway error. The Render URL keeps working directly in that case, which is why
 the API still serves the browser app rather than being stripped down to JSON.
+
+Measured, the hop is cheaper than that makes it sound. A cold first request through Vercel took
+**42.5 s and returned 200** rather than timing out; warm, it takes **0.54 s against 0.79 s** straight
+to Render, because the edge is nearer the browser than Oregon is. `decisions.md` Decision 11 has the
+figures and what they do not prove.
 
 That hosting choice is what moved the database. The constraint set in advance — no engine-specific
 SQL anywhere — was written for exactly this: free MySQL hosting is scarce, free Postgres is not, and
